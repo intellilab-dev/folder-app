@@ -1,0 +1,41 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+
+# Build artifacts
+Folder.app/
+*.app/
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Xcode
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# Build database (to avoid I/O errors)
+build.db
+build.db-journal
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
