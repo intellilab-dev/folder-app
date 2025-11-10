@@ -61,7 +61,7 @@ Press Cmd+, to access:
 
 This will:
 1. Compile the Swift code using Swift Package Manager
-2. Create a macOS .app bundle
+2. Create a macOS .app bundle with app icon
 3. Place it in `Folder.app`
 
 ### Run the App
@@ -71,6 +71,19 @@ This will:
 ```
 
 Or double-click `Folder.app` in Finder.
+
+### Install to PATH (Optional)
+
+To use `folder` command from anywhere in Terminal:
+
+```bash
+./install-to-path.sh
+```
+
+This creates a symlink in `/usr/local/bin/folder` that points to the app. After installation, you can:
+- Run `folder` from any terminal to launch the app
+- Use in scripts and shortcuts
+- Uninstall with: `sudo rm /usr/local/bin/folder`
 
 ## 🧪 Testing Guide
 

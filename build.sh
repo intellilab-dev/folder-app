@@ -40,6 +40,8 @@ cat > "${CONTENTS}/Info.plist" << 'EOF'
     <string>en</string>
     <key>CFBundleExecutable</key>
     <string>Folder</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.folder.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -61,6 +63,12 @@ cat > "${CONTENTS}/Info.plist" << 'EOF'
 </dict>
 </plist>
 EOF
+
+# Copy app icon if it exists
+if [ -f "Resources/AppIcon.icns" ]; then
+    echo "🎨 Copying app icon..."
+    cp "Resources/AppIcon.icns" "${RESOURCES}/"
+fi
 
 # Make executable
 chmod +x "${MACOS}/${APP_NAME}"
