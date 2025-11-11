@@ -16,6 +16,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenu()
 
+        // Register for URL events
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+
         // Create the main window
         let contentView = ContentView()
             .environmentObject(SettingsManager.shared)
@@ -36,6 +44,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
+    }
+
+    @objc func handleURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString) else {
+            return
+        }
+
+        // Handle URL: folder://open?path=/path/to/folder
+        if url.scheme == "folder" {
+            handleFolderURL(url)
+        }
+    }
+
+    private func handleFolderURL(_ url: URL) {
+        // Make sure window is visible
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+
+        // Parse URL and open folder
+        if url.host == "open", let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            if let pathItem = components.queryItems?.first(where: { $0.name == "path" }),
+               let folderPath = pathItem.value {
+                // Open the specified folder
+                print("Opening folder from URL: \(folderPath)")
+                // TODO: Navigate to the folder path in FileExplorerViewModel
+            }
+        }
     }
 
     @MainActor @objc func showSettings() {

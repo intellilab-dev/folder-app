@@ -267,6 +267,10 @@ struct ContentView: View {
             viewModel.clearSelection()
             return true
 
+        case 49: // Space bar - Quick Look
+            showQuickLook()
+            return true
+
         default:
             return false
         }
@@ -324,6 +328,13 @@ struct ContentView: View {
     }
 
     // MARK: - File Operations
+
+    private func showQuickLook() {
+        let selectedItemsList = viewModel.items.filter { viewModel.selectedItems.contains($0.id) }
+        guard !selectedItemsList.isEmpty else { return }
+
+        QuickLookManager.shared.showPreview(for: selectedItemsList, startingAt: 0)
+    }
 
     private func showNewFolderPrompt() {
         let alert = NSAlert()

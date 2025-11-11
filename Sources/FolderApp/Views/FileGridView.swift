@@ -111,6 +111,8 @@ struct FileGridItem: View {
     let isDimmed: Bool
     @StateObject private var iconService = IconService.shared
     @StateObject private var sidebarManager = SidebarManager.shared
+    @StateObject private var thumbnailService = ThumbnailService.shared
+    @State private var thumbnail: NSImage?
 
     private var isCut: Bool {
         clipboardManager.clipboardAction == .cut &&
@@ -133,12 +135,22 @@ struct FileGridItem: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            // Icon
+            // Icon or Thumbnail
             ZStack(alignment: .bottomTrailing) {
-                iconService.swiftUIIcon(for: item, size: 64)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 64, height: 64)
+                if let thumbnail = thumbnail {
+                    // Show thumbnail preview
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    // Show regular icon
+                    iconService.swiftUIIcon(for: item, size: 64)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                }
 
                 // Symlink badge
                 if item.isSymlink {
@@ -179,6 +191,12 @@ struct FileGridItem: View {
                 .stroke(isSelected ? Color.folderAccent : Color.clear, lineWidth: 2)
         )
         .opacity(opacity)
+        .task {
+            // Load thumbnail for images and PDFs
+            if thumbnailService.supportsThumbnail(for: item.path.path) {
+                thumbnail = await thumbnailService.getThumbnail(for: item.path.path, size: CGSize(width: 128, height: 128))
+            }
+        }
     }
 }
 

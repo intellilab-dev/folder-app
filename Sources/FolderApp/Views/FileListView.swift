@@ -103,6 +103,8 @@ struct FileListRow: View {
     let isDimmed: Bool
     @StateObject private var iconService = IconService.shared
     @StateObject private var sidebarManager = SidebarManager.shared
+    @StateObject private var thumbnailService = ThumbnailService.shared
+    @State private var thumbnail: NSImage?
 
     private var isCut: Bool {
         clipboardManager.clipboardAction == .cut &&
@@ -125,12 +127,22 @@ struct FileListRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Icon
+            // Icon or Thumbnail
             ZStack(alignment: .bottomTrailing) {
-                iconService.swiftUIIcon(for: item, size: 20)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
+                if let thumbnail = thumbnail {
+                    // Show thumbnail preview
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 20, height: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 2))
+                } else {
+                    // Show regular icon
+                    iconService.swiftUIIcon(for: item, size: 20)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                }
 
                 // Symlink badge
                 if item.isSymlink {
@@ -197,6 +209,12 @@ struct FileListRow: View {
         .background(isSelected ? Color.folderAccent.opacity(0.1) : Color.clear)
         .cornerRadius(4)
         .opacity(opacity)
+        .task {
+            // Load thumbnail for images and PDFs
+            if thumbnailService.supportsThumbnail(for: item.path.path) {
+                thumbnail = await thumbnailService.getThumbnail(for: item.path.path, size: CGSize(width: 40, height: 40))
+            }
+        }
     }
 
     private func formatFileSize(_ bytes: Int64) -> String {

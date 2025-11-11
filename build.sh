@@ -60,6 +60,17 @@ cat > "${CONTENTS}/Info.plist" << 'EOF'
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.folder.app</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>folder</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 EOF
