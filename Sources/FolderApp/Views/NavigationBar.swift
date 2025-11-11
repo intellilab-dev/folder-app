@@ -55,7 +55,8 @@ struct NavigationBar: View {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(searchViewModel.isSearchActive ? Color.folderAccent : .secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
+                .help("Search (Cmd+F)")
 
                 if searchViewModel.isSearchActive {
                     // Search mode
