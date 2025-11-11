@@ -71,35 +71,36 @@ func createFolderIcon(size: CGFloat) -> NSImage {
 
     image.lockFocus()
 
-    // Create gradient background circle
+    // Dark blue-gray background (matching the design)
     let bounds = NSRect(x: 0, y: 0, width: size, height: size)
-    let circlePath = NSBezierPath(ovalIn: bounds.insetBy(dx: size * 0.05, dy: size * 0.05))
+    let backgroundColor = NSColor(red: 0.25, green: 0.29, blue: 0.33, alpha: 1.0)
+    backgroundColor.setFill()
+    NSBezierPath(rect: bounds).fill()
 
-    // Purple gradient (similar to the icon in the screenshot)
-    let gradient = NSGradient(colors: [
-        NSColor(red: 0.6, green: 0.4, blue: 0.9, alpha: 1.0),  // Light purple
-        NSColor(red: 0.5, green: 0.3, blue: 0.8, alpha: 1.0)   // Darker purple
-    ])
+    // Draw layered/stacked icon in white
+    let centerX = size / 2
+    let centerY = size / 2
+    let layerWidth = size * 0.5
+    let layerHeight = size * 0.12
+    let layerSpacing = size * 0.08
 
-    gradient?.draw(in: circlePath, angle: -45)
+    NSColor.white.setFill()
 
-    // Draw folder symbol in white
-    if let folderSymbol = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil) {
-        let symbolConfig = NSImage.SymbolConfiguration(pointSize: size * 0.5, weight: .regular)
-        let configuredSymbol = folderSymbol.withSymbolConfiguration(symbolConfig)
+    // Draw 3 stacked layers (bottom to top)
+    for i in 0..<3 {
+        let yOffset = centerY - (layerHeight / 2) + CGFloat(i - 1) * layerSpacing
 
-        // Center the symbol
-        let symbolSize = configuredSymbol?.size ?? NSSize(width: size * 0.5, height: size * 0.5)
-        let symbolRect = NSRect(
-            x: (size - symbolSize.width) / 2,
-            y: (size - symbolSize.height) / 2,
-            width: symbolSize.width,
-            height: symbolSize.height
+        // Create rounded rectangle for each layer
+        let layerRect = NSRect(
+            x: centerX - layerWidth / 2,
+            y: yOffset,
+            width: layerWidth,
+            height: layerHeight
         )
 
-        // Draw white folder symbol
-        NSColor.white.set()
-        configuredSymbol?.draw(in: symbolRect)
+        let cornerRadius = layerHeight * 0.3
+        let layerPath = NSBezierPath(roundedRect: layerRect, xRadius: cornerRadius, yRadius: cornerRadius)
+        layerPath.fill()
     }
 
     image.unlockFocus()

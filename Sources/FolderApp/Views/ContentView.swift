@@ -346,10 +346,16 @@ struct ContentView: View {
     // MARK: - File Operations
 
     private func showQuickLook() {
-        let selectedItemsList = viewModel.items.filter { viewModel.selectedItems.contains($0.id) }
-        guard !selectedItemsList.isEmpty else { return }
+        guard !viewModel.selectedItems.isEmpty else { return }
 
-        QuickLookManager.shared.showPreview(for: selectedItemsList, startingAt: 0)
+        // Find the index of the first selected item
+        guard let firstSelectedId = viewModel.selectedItems.first,
+              let startIndex = viewModel.items.firstIndex(where: { $0.id == firstSelectedId }) else {
+            return
+        }
+
+        // Pass all items so user can navigate with arrow keys
+        QuickLookManager.shared.showPreview(for: viewModel.items, startingAt: startIndex)
     }
 
     private func showNewFolderPrompt() {

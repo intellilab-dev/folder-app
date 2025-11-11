@@ -73,11 +73,31 @@ class QuickLookManager: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelega
             case 53: // Escape key
                 panel.orderOut(nil)
                 return true
+            case 123, 124: // Left/Right arrow keys
+                // Let Quick Look handle navigation between items
+                return false
+            case 125, 126: // Up/Down arrow keys
+                // Let Quick Look handle these too
+                return false
             default:
                 break
             }
         }
         return false
+    }
+
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        return true
+    }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = self
+        panel.delegate = self
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = nil
+        panel.delegate = nil
     }
 
     func previewPanel(_ panel: QLPreviewPanel!, sourceFrameOnScreenFor item: QLPreviewItem!) -> NSRect {
