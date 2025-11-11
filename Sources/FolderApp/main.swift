@@ -38,6 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window?.center()
         window?.title = "Folder"
         window?.contentView = NSHostingView(rootView: contentView)
+        window?.backgroundColor = NSColor(red: 40/255, green: 44/255, blue: 52/255, alpha: 1.0)
         window?.makeKeyAndOrderFront(nil)
         window?.setFrameAutosaveName("MainWindow")
     }

@@ -11,6 +11,7 @@ import AppKit
 struct NavigationBar: View {
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var searchViewModel: SearchViewModel
+    @EnvironmentObject var settingsManager: SettingsManager
     @State private var editingPath: String = ""
     @State private var isEditingPath = false
     @FocusState private var isPathFieldFocused: Bool
@@ -18,6 +19,19 @@ struct NavigationBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // Sidebar toggle button
+            Button(action: {
+                settingsManager.settings.showSidebar.toggle()
+            }) {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 16, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+            .help(settingsManager.settings.showSidebar ? "Hide Sidebar" : "Show Sidebar")
+
+            Divider()
+                .frame(height: 20)
+
             // Back button
             Button(action: { viewModel.navigateBack() }) {
                 Image(systemName: "chevron.left")
@@ -155,6 +169,7 @@ struct NavigationBar: View {
             .help("Refresh")
         }
         .frame(height: 44)
+        .background(Color.folderSidebar)
         .onChange(of: viewModel.currentPath) { newPath in
             // Reset editing state when path changes externally
             if isEditingPath {

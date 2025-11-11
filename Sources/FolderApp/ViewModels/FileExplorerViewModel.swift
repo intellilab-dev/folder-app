@@ -30,6 +30,10 @@ class FileExplorerViewModel: ObservableObject {
     // Services
     private let fileSystemService = FileSystemService.shared
     private let settingsManager = SettingsManager.shared
+    private let fileWatcher = FileSystemWatcher()
+
+    // Combine subscriptions
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
@@ -41,10 +45,33 @@ class FileExplorerViewModel: ObservableObject {
             self.currentPath = fileSystemService.homeDirectory()
         }
 
+        // Subscribe to file system changes
+        setupFileWatcher()
+
         // Load initial contents
         Task {
             await loadContents()
         }
+    }
+
+    // MARK: - File System Watching
+
+    private func setupFileWatcher() {
+        fileWatcher.$didDetectChanges
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] didChange in
+                guard let self = self, didChange else { return }
+
+                // Auto-refresh when changes detected
+                print("Auto-refreshing due to file system changes")
+                Task {
+                    await self.loadContents()
+                }
+
+                // Reset the flag
+                self.fileWatcher.resetChangeFlag()
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Directory Loading
@@ -73,10 +100,16 @@ class FileExplorerViewModel: ObservableObject {
             Task.detached(priority: .background) { [weak self] in
                 await self?.calculateFolderSizes(for: contents.filter { $0.type == .folder })
             }
+
+            // Start watching the current directory for changes
+            fileWatcher.startWatching(url: currentPath)
         } catch {
             self.errorMessage = "Failed to load directory: \(error.localizedDescription)"
             self.items = []
             self.isLoading = false
+
+            // Stop watching on error
+            fileWatcher.stopWatching()
         }
     }
 
@@ -242,11 +275,7 @@ class FileExplorerViewModel: ObservableObject {
             sorted.reverse()
         }
 
-        // Always keep folders first
-        let folders = sorted.filter { $0.type == .folder }
-        let files = sorted.filter { $0.type != .folder }
-
-        return folders + files
+        return sorted
     }
 
     // MARK: - Refresh
@@ -373,5 +402,11 @@ class FileExplorerViewModel: ObservableObject {
 
         selectedItems.removeAll()
         refresh()
+    }
+
+    // MARK: - Deinitialization
+
+    deinit {
+        fileWatcher.stopWatching()
     }
 }

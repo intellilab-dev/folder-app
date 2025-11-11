@@ -14,12 +14,11 @@ struct ContentView: View {
     @StateObject private var clipboardManager = ClipboardManager.shared
     @StateObject private var sidebarManager = SidebarManager.shared
     @EnvironmentObject var settingsManager: SettingsManager
-    @State private var isSidebarVisible = true
 
     var body: some View {
         HStack(spacing: 0) {
             // Sidebar
-            if isSidebarVisible {
+            if settingsManager.settings.showSidebar {
                 SidebarView(sidebarManager: sidebarManager, fileExplorerViewModel: viewModel)
                 Divider()
             }
@@ -27,6 +26,7 @@ struct ContentView: View {
             // Main content area
             mainContentArea
         }
+        .background(Color.folderBase)
         .preferredColorScheme(colorScheme)
         .onAppear {
             setupKeyboardHandling()
@@ -283,8 +283,8 @@ struct ContentView: View {
         guard let window = NSApp.keyWindow else { return 4 }
 
         let windowWidth = window.frame.width
-        let sidebarWidth: CGFloat = isSidebarVisible ? 200 : 0 // Approximate sidebar width
-        let dividerWidth: CGFloat = isSidebarVisible ? 1 : 0
+        let sidebarWidth: CGFloat = settingsManager.settings.showSidebar ? 200 : 0 // Approximate sidebar width
+        let dividerWidth: CGFloat = settingsManager.settings.showSidebar ? 1 : 0
 
         // Available width for grid content
         let availableWidth = windowWidth - sidebarWidth - dividerWidth

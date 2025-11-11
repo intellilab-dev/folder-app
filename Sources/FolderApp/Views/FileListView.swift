@@ -15,7 +15,10 @@ struct FileListView: View {
     let showDimmed: Bool
 
     var body: some View {
-        List(viewModel.items) { item in
+        VStack(spacing: 0) {
+            SortingToolbar(viewModel: viewModel)
+
+            List(viewModel.items) { item in
             FileListRow(item: item, isSelected: viewModel.isSelected(item), clipboardManager: clipboardManager, fileExplorerViewModel: viewModel, isDimmed: showDimmed)
                 .onTapGesture(count: 2) {
                     handleDoubleClick(item)
@@ -34,6 +37,7 @@ struct FileListView: View {
                 }
         }
         .listStyle(.plain)
+        }
     }
 
     private func handleSingleClick(_ item: FileSystemItem) {

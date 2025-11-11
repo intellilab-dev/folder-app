@@ -62,6 +62,13 @@ struct SettingsView: View {
                     Toggle("Show Hidden Files", isOn: $settingsManager.settings.showHiddenFiles)
                 }
 
+                // Sidebar Visibility
+                Section(header: Text("Sidebar").font(.headline)) {
+                    Toggle("Show Favorites Section", isOn: $settingsManager.settings.showFavoritesSection)
+                    Toggle("Show Recent Section", isOn: $settingsManager.settings.showRecentSection)
+                    Toggle("Show Color Tags Section", isOn: $settingsManager.settings.showColorTagsSection)
+                }
+
                 // Appearance Settings
                 Section(header: Text("Appearance").font(.headline)) {
                     Picker("Theme:", selection: $settingsManager.settings.theme) {

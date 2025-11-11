@@ -20,8 +20,11 @@ struct FileGridView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: spacing) {
+        VStack(spacing: 0) {
+            SortingToolbar(viewModel: viewModel)
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: spacing) {
                 ForEach(viewModel.items) { item in
                     FileGridItem(item: item, isSelected: viewModel.isSelected(item), clipboardManager: clipboardManager, isDimmed: showDimmed)
                         .onTapGesture(count: 2) {
@@ -42,6 +45,7 @@ struct FileGridView: View {
                 }
             }
             .padding()
+            }
         }
     }
 

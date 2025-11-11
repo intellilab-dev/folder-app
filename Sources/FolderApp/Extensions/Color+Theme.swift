@@ -10,6 +10,8 @@ import AppKit
 
 extension Color {
     static let folderAccent = Color(hex: "#009880")
+    static let folderBase = Color(red: 40/255, green: 44/255, blue: 52/255)
+    static let folderSidebar = Color(red: 30/255, green: 33/255, blue: 39/255)
 
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)

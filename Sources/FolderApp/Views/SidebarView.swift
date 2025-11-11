@@ -10,12 +10,14 @@ import SwiftUI
 struct SidebarView: View {
     @ObservedObject var sidebarManager: SidebarManager
     @ObservedObject var fileExplorerViewModel: FileExplorerViewModel
+    @EnvironmentObject var settingsManager: SettingsManager
     @State private var showAllRecent = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Favorites Section
-            SidebarSection(title: "Favorites") {
+            if settingsManager.settings.showFavoritesSection {
+                SidebarSection(title: "Favorites") {
                 ForEach(sidebarManager.favorites) { favorite in
                     SidebarFavoriteItem(
                         favorite: favorite,
@@ -38,11 +40,13 @@ struct SidebarView: View {
                 handleDropToFavorites(providers: providers)
             }
 
-            Divider()
-                .padding(.vertical, 8)
+                Divider()
+                    .padding(.vertical, 8)
+            }
 
             // Recent Locations Section
-            SidebarSection(title: "Recent") {
+            if settingsManager.settings.showRecentSection {
+                SidebarSection(title: "Recent") {
                 let displayedRecent = showAllRecent ? sidebarManager.recentLocations : Array(sidebarManager.recentLocations.prefix(5))
 
                 ForEach(displayedRecent, id: \.self) { location in
@@ -82,11 +86,13 @@ struct SidebarView: View {
                 }
             }
 
-            Divider()
-                .padding(.vertical, 8)
+                Divider()
+                    .padding(.vertical, 8)
+            }
 
             // Color Tags Section
-            SidebarSection(title: "Color Tags") {
+            if settingsManager.settings.showColorTagsSection {
+                SidebarSection(title: "Color Tags") {
                 let taggedPaths = Array(sidebarManager.colorTags.keys).sorted { $0.path < $1.path }
 
                 ForEach(taggedPaths, id: \.self) { path in
@@ -102,11 +108,13 @@ struct SidebarView: View {
                     }
                 }
             }
+            }
 
             Spacer()
         }
+        .padding(.top, 52)
         .frame(width: 200)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(Color.folderSidebar)
     }
 
     private func handleDropToFavorites(providers: [NSItemProvider]) -> Bool {
@@ -210,7 +218,7 @@ struct SidebarFavoriteItem: View {
                             .frame(width: 6, height: 6)
                             .overlay(
                                 Circle()
-                                    .stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 0.5)
+                                    .stroke(Color.folderSidebar, lineWidth: 0.5)
                             )
                             .offset(x: -3, y: -3)
                     }
@@ -331,7 +339,7 @@ struct SidebarColorTagItem: View {
                         .frame(width: 6, height: 6)
                         .overlay(
                             Circle()
-                                .stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 0.5)
+                                .stroke(Color.folderSidebar, lineWidth: 0.5)
                         )
                         .offset(x: -3, y: -3)
                 }

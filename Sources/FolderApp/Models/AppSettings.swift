@@ -19,6 +19,12 @@ struct AppSettings: Codable {
     var launchAtLogin: Bool
     var showMenuBarIcon: Bool
 
+    // Sidebar visibility
+    var showSidebar: Bool
+    var showFavoritesSection: Bool
+    var showRecentSection: Bool
+    var showColorTagsSection: Bool
+
     enum DisplayMode: String, Codable {
         case iconGrid
         case list
@@ -41,7 +47,11 @@ struct AppSettings: Codable {
         keyboardShortcuts: KeyboardShortcuts(),
         globalHotkey: GlobalHotkey(),
         launchAtLogin: false,
-        showMenuBarIcon: true
+        showMenuBarIcon: true,
+        showSidebar: true,
+        showFavoritesSection: true,
+        showRecentSection: true,
+        showColorTagsSection: true
     )
 }
 

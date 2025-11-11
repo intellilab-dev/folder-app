@@ -36,7 +36,7 @@ struct ViewMode: Identifiable, Codable {
         id: UUID(),
         mode: .iconGrid,
         iconSize: 64,
-        sortBy: .name,
-        sortOrder: .ascending
+        sortBy: .dateModified,
+        sortOrder: .descending
     )
 }
