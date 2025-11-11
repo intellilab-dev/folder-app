@@ -112,7 +112,6 @@ struct SidebarView: View {
 
             Spacer()
         }
-        .padding(.top, 52)
         .frame(width: 200)
         .background(Color.folderSidebar)
     }
@@ -365,6 +364,7 @@ struct SidebarColorTagItem: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .contextMenu {
             Button("Open") {
                 action()

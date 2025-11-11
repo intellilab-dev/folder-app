@@ -128,7 +128,7 @@ struct NavigationBar: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(Color.folderSidebar)
             .cornerRadius(6)
             .onChange(of: isEditingPath) { newValue in
                 if newValue {
@@ -169,7 +169,6 @@ struct NavigationBar: View {
             .help("Refresh")
         }
         .frame(height: 44)
-        .background(Color.folderSidebar)
         .onChange(of: viewModel.currentPath) { newPath in
             // Reset editing state when path changes externally
             if isEditingPath {

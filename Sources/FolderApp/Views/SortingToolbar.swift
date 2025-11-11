@@ -36,8 +36,6 @@ struct SortingToolbar: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color.folderSidebar)
-        .border(Color(nsColor: .separatorColor), width: 0.5)
     }
 
     private func sortButton(title: String, icon: String, option: ViewMode.SortOption) -> some View {
@@ -65,14 +63,13 @@ struct SortingToolbar: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(
-                viewModel.viewMode.sortBy == option
-                    ? Color.accentColor.opacity(0.15)
-                    : Color.clear
-            )
-            .cornerRadius(4)
         }
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(viewModel.viewMode.sortBy == option ? Color.folderAccent.opacity(0.15) : Color.clear)
+        )
         .buttonStyle(.plain)
+        .focusable(false)
         .help("Sort by \(title)")
     }
 }
