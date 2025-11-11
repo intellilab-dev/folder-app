@@ -279,13 +279,29 @@ struct ContentView: View {
     // MARK: - Grid Navigation Helper
 
     private func calculateGridColumns() -> Int {
-        // Estimate columns based on window width and icon size
-        // This is an approximation - the actual grid adapts dynamically
+        // Calculate columns to match LazyVGrid's adaptive layout
         guard let window = NSApp.keyWindow else { return 4 }
+
         let windowWidth = window.frame.width
+        let sidebarWidth: CGFloat = isSidebarVisible ? 200 : 0 // Approximate sidebar width
+        let dividerWidth: CGFloat = isSidebarVisible ? 1 : 0
+
+        // Available width for grid content
+        let availableWidth = windowWidth - sidebarWidth - dividerWidth
+
+        // Grid uses .padding() which is default 16px on each side
+        let horizontalPadding: CGFloat = 16 * 2
+        let contentWidth = availableWidth - horizontalPadding
+
+        // Grid item sizing: minimum = iconSize + 40, spacing = 16
         let iconSize = CGFloat(viewModel.viewMode.iconSize)
-        let itemWidth = iconSize + 40 + 16 // icon + padding + spacing
-        let columns = max(1, Int(windowWidth / itemWidth))
+        let itemMinWidth = iconSize + 40
+        let spacing: CGFloat = 16
+
+        // Calculate how many items fit: (contentWidth + spacing) / (itemMinWidth + spacing)
+        // We add spacing to contentWidth because the last item doesn't have trailing spacing
+        let columns = max(1, Int((contentWidth + spacing) / (itemMinWidth + spacing)))
+
         return columns
     }
 
