@@ -1,6 +1,61 @@
 # Folder App - Changelog
 
-## Phase 1.5 - Polish & Keyboard Navigation (Latest Build)
+## Phase 1.6 - Image Previews & Quick Look Integration (Latest Build)
+
+### ✅ Implemented Features
+
+#### 1. Thumbnail Previews for Images and PDFs 🖼️
+- **Before**: All files showed generic file type icons
+- **After**: Images and PDFs display actual thumbnail previews
+- **Supported formats**:
+  - Images: JPG, JPEG, PNG, GIF, BMP, TIFF, TIF, HEIC, HEIF, WebP, ICO, ICNS
+  - Documents: PDF
+- **Grid view**: Large 128x128px thumbnails
+- **List view**: Small 40x40px thumbnails
+- **Performance**: Thumbnails are cached in memory for fast loading
+
+#### 2. Quick Look Preview (Space Bar) 🔍
+- **Keyboard shortcut**: Press `Space` to preview selected files
+- **Supported files**: All file types supported by macOS Quick Look
+  - Images (JPG, PNG, etc.)
+  - PDFs
+  - Videos
+  - Audio files
+  - Text documents
+  - And more!
+- **Features**:
+  - Full-screen preview with zoom
+  - **Arrow keys**: Navigate left/right through multiple selected files
+  - Preview all selected files in sequence
+  - Press `Escape` or `Space` again to close
+  - Smooth animations and transitions
+
+#### 3. URL Scheme for Shortcuts Automation 🔗
+- **URL scheme**: `folder://`
+- **Usage**:
+  - Can be referenced in macOS Shortcuts app
+  - Open specific folders programmatically
+  - Example: `folder://open?path=/Users/name/Documents`
+- **Integration**: Registered in system URL handlers
+- **Access**: App now appears in Shortcuts app's "Open X URL" actions
+
+### Technical Details
+
+#### ThumbnailService
+- Uses `QuickLookThumbnailing` framework for PDF thumbnails
+- Uses `NSImage` for fast image thumbnail generation
+- Implements intelligent caching (500 items, 100MB limit)
+- Asynchronous loading for smooth UI performance
+
+#### QuickLookManager
+- Integrates with native macOS Quick Look panel
+- Implements `QLPreviewPanelDataSource` and `QLPreviewPanelDelegate`
+- Handles keyboard events within preview panel
+- Supports multiple file preview with arrow key navigation
+
+---
+
+## Phase 1.5 - Polish & Keyboard Navigation
 
 ### ✅ Implemented Features
 
@@ -185,11 +240,15 @@ Added proper macOS menu with:
 
 ## Build Info
 
-- **Version**: 0.1.0 (Phase 1.5)
-- **Build Date**: 2025-11-10
+- **Version**: 0.1.1 (Phase 1.6)
+- **Build Date**: 2025-11-11
 - **Platform**: macOS 13.0+
 - **Swift Version**: 6.2.1
 - **Build System**: Swift Package Manager
+- **New in this build**:
+  - Image/PDF thumbnails
+  - Quick Look integration (Space bar)
+  - Shortcuts automation support (folder:// URL scheme)
 
 ---
 
