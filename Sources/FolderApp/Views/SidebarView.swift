@@ -25,15 +25,40 @@ struct SidebarView: View {
                         isSelected: fileExplorerViewModel.currentPath == favorite.path,
                         sidebarManager: sidebarManager
                     ) {
-                        // Check if file or folder
-                        var isDirectory: ObjCBool = false
-                        if FileManager.default.fileExists(atPath: favorite.path.path, isDirectory: &isDirectory) {
-                            if isDirectory.boolValue {
-                                fileExplorerViewModel.navigate(to: favorite.path)
-                            } else {
-                                NSWorkspace.shared.open(favorite.path)
-                            }
+                        // Resolve symlinks first
+                        let resolvedPath = favorite.path.resolvingSymlinksInPath()
+
+                        print("=== Favorite Click Debug ===")
+                        print("Favorite name: \(favorite.name)")
+                        print("Original path: \(favorite.path.path)")
+                        print("Resolved path: \(resolvedPath.path)")
+
+                        // Check existence
+                        guard FileManager.default.fileExists(atPath: resolvedPath.path) else {
+                            print("❌ ERROR: Favorite path does not exist")
+                            print("===========================")
+                            return
                         }
+
+                        // Use resourceValues for more reliable directory check
+                        do {
+                            let resourceValues = try resolvedPath.resourceValues(forKeys: [.isDirectoryKey])
+                            if let isDirectory = resourceValues.isDirectory {
+                                print("Is directory: \(isDirectory)")
+                                if isDirectory {
+                                    print("→ Navigating to folder")
+                                    fileExplorerViewModel.navigate(to: resolvedPath)
+                                } else {
+                                    print("→ Opening file")
+                                    NSWorkspace.shared.open(resolvedPath)
+                                }
+                            }
+                        } catch {
+                            print("❌ ERROR: Failed to check resource type: \(error)")
+                            print("→ Fallback: Trying to open with NSWorkspace")
+                            NSWorkspace.shared.open(resolvedPath)
+                        }
+                        print("===========================")
                     }
                     .onDrag {
                         NSItemProvider(object: favorite.id.uuidString as NSString)
@@ -112,15 +137,40 @@ struct SidebarView: View {
                             isSelected: fileExplorerViewModel.currentPath == path,
                             sidebarManager: sidebarManager
                         ) {
-                            // Check if file or folder
-                            var isDirectory: ObjCBool = false
-                            if FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory) {
-                                if isDirectory.boolValue {
-                                    fileExplorerViewModel.navigate(to: path)
-                                } else {
-                                    NSWorkspace.shared.open(path)
-                                }
+                            // Resolve symlinks first
+                            let resolvedPath = path.resolvingSymlinksInPath()
+
+                            print("=== Color Tag Click Debug ===")
+                            print("Tag name: \(colorTag.name)")
+                            print("Original path: \(path.path)")
+                            print("Resolved path: \(resolvedPath.path)")
+
+                            // Check existence
+                            guard FileManager.default.fileExists(atPath: resolvedPath.path) else {
+                                print("❌ ERROR: Color tag path does not exist")
+                                print("============================")
+                                return
                             }
+
+                            // Use resourceValues for more reliable directory check
+                            do {
+                                let resourceValues = try resolvedPath.resourceValues(forKeys: [.isDirectoryKey])
+                                if let isDirectory = resourceValues.isDirectory {
+                                    print("Is directory: \(isDirectory)")
+                                    if isDirectory {
+                                        print("→ Navigating to folder")
+                                        fileExplorerViewModel.navigate(to: resolvedPath)
+                                    } else {
+                                        print("→ Opening file")
+                                        NSWorkspace.shared.open(resolvedPath)
+                                    }
+                                }
+                            } catch {
+                                print("❌ ERROR: Failed to check resource type: \(error)")
+                                print("→ Fallback: Trying to open with NSWorkspace")
+                                NSWorkspace.shared.open(resolvedPath)
+                            }
+                            print("============================")
                         }
                     }
                 }

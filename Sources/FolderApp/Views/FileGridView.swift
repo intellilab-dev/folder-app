@@ -55,30 +55,29 @@ struct FileGridView: View {
                 }
                 .padding()
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
-                .background(
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .contextMenu {
-                            Button("New Folder") {
-                                showNewFolderPrompt()
-                            }
+                .background(Color.white.opacity(0.001))
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button("New Folder") {
+                        showNewFolderPrompt()
+                    }
 
-                            Divider()
+                    Divider()
 
-                            Button("Paste") {
-                                Task {
-                                    do {
-                                        _ = try await clipboardManager.paste(to: viewModel.currentPath)
-                                        viewModel.refresh()
-                                    } catch {
-                                        print("Paste failed: \(error)")
-                                    }
-                                }
+                    Button("Paste") {
+                        Task {
+                            do {
+                                _ = try await clipboardManager.paste(to: viewModel.currentPath)
+                                viewModel.refresh()
+                            } catch {
+                                print("Paste failed: \(error)")
                             }
-                            .disabled(!clipboardManager.hasClipboardContent())
                         }
-                )
+                    }
+                    .disabled(!clipboardManager.hasClipboardContent())
+                }
             }
+            .contentShape(Rectangle())
             .contextMenu {
                 Button("New Folder") {
                     showNewFolderPrompt()

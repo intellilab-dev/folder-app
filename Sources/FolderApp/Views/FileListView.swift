@@ -47,6 +47,7 @@ struct FileListView: View {
                 }
             }
             .listStyle(.plain)
+            .contentShape(Rectangle())
             .contextMenu {
                 Button("New Folder") {
                     showNewFolderPrompt()

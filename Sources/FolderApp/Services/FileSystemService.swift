@@ -98,7 +98,30 @@ class FileSystemService: ObservableObject {
     /// Create new folder
     func createFolder(at url: URL, named name: String) throws {
         let folderURL = url.appendingPathComponent(name)
-        try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: false, attributes: nil)
+
+        print("  [FileSystemService] Creating folder at: \(folderURL.path)")
+        print("  [FileSystemService] Parent directory: \(url.path)")
+        print("  [FileSystemService] Parent exists: \(fileManager.fileExists(atPath: url.path))")
+        print("  [FileSystemService] Parent is writable: \(fileManager.isWritableFile(atPath: url.path))")
+
+        do {
+            try fileManager.createDirectory(at: folderURL, withIntermediateDirectories: false, attributes: nil)
+            print("  [FileSystemService] ✅ Directory created successfully")
+
+            // Verify it was created
+            if fileManager.fileExists(atPath: folderURL.path) {
+                print("  [FileSystemService] ✅ Verified: Folder exists at \(folderURL.path)")
+            } else {
+                print("  [FileSystemService] ⚠️ Warning: Folder created but doesn't exist?")
+            }
+        } catch let error as NSError {
+            print("  [FileSystemService] ❌ Error creating directory")
+            print("  [FileSystemService] Error domain: \(error.domain)")
+            print("  [FileSystemService] Error code: \(error.code)")
+            print("  [FileSystemService] Error description: \(error.localizedDescription)")
+            print("  [FileSystemService] Error userInfo: \(error.userInfo)")
+            throw error
+        }
     }
 
     // MARK: - Path Validation

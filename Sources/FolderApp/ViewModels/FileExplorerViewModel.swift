@@ -387,8 +387,22 @@ class FileExplorerViewModel: ObservableObject {
     // MARK: - File Operations
 
     func createNewFolder(named name: String, autoRename: Bool = false) {
+        // Start accessing the directory with security-scoped resource
+        let accessing = currentPath.startAccessingSecurityScopedResource()
+        defer {
+            if accessing {
+                currentPath.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        print("=== Create New Folder Debug ===")
+        print("Folder name: \(name)")
+        print("Current path: \(currentPath.path)")
+        print("Security-scoped access granted: \(accessing)")
+
         do {
             try fileSystemService.createFolder(at: currentPath, named: name)
+            print("✅ SUCCESS: Folder '\(name)' created")
 
             if autoRename {
                 // Refresh to get the new folder, then start renaming it
@@ -403,8 +417,12 @@ class FileExplorerViewModel: ObservableObject {
                 refresh()
             }
         } catch {
+            print("❌ ERROR: Failed to create folder")
+            print("Error: \(error)")
+            print("Error description: \(error.localizedDescription)")
             errorMessage = "Failed to create folder: \(error.localizedDescription)"
         }
+        print("==============================")
     }
 
     func renameItem(_ item: FileSystemItem, to newName: String) {
