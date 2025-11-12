@@ -26,7 +26,7 @@ struct NavigationBar: View {
                 Image(systemName: "sidebar.left")
                     .font(.system(size: 16, weight: .medium))
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .help(settingsManager.settings.showSidebar ? "Hide Sidebar" : "Show Sidebar")
 
             Divider()
