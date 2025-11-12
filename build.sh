@@ -71,6 +71,12 @@ cat > "${CONTENTS}/Info.plist" << 'EOF'
             </array>
         </dict>
     </array>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Folder needs access to browse files on your Desktop.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Folder needs access to browse your documents.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Folder needs access to browse your downloads.</string>
 </dict>
 </plist>
 EOF
@@ -83,6 +89,10 @@ fi
 
 # Make executable
 chmod +x "${MACOS}/${APP_NAME}"
+
+# Code sign with entitlements
+echo "🔒 Code signing with entitlements..."
+codesign --force --sign - --entitlements Folder.entitlements --deep "${APP_BUNDLE}"
 
 echo "✅ Build complete! App bundle created at: ${APP_BUNDLE}"
 echo ""

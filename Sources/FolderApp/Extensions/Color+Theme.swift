@@ -41,4 +41,5 @@ extension Color {
 
 extension NSColor {
     static let folderAccent = NSColor(red: 0x00 / 255.0, green: 0x98 / 255.0, blue: 0x80 / 255.0, alpha: 1.0)
+    static let folderSidebar = NSColor(red: 30/255, green: 33/255, blue: 39/255, alpha: 1.0)
 }
