@@ -14,6 +14,9 @@ struct FileListView: View {
     @StateObject private var clipboardManager = ClipboardManager.shared
     let showDimmed: Bool
 
+    @State private var showingNewFolderAlert = false
+    @State private var newFolderName = ""
+
     var body: some View {
         VStack(spacing: 0) {
             SortingToolbar(viewModel: viewModel)
@@ -37,6 +40,38 @@ struct FileListView: View {
                 }
         }
         .listStyle(.plain)
+        .contextMenu {
+            Button("New Folder") {
+                newFolderName = "Untitled Folder"
+                showingNewFolderAlert = true
+            }
+
+            Divider()
+
+            Button("Paste") {
+                Task {
+                    do {
+                        _ = try await clipboardManager.paste(to: viewModel.currentPath)
+                        viewModel.refresh()
+                    } catch {
+                        print("Paste failed: \(error)")
+                    }
+                }
+            }
+            .disabled(!clipboardManager.hasClipboardContent())
+        }
+        .background(
+            EmptyView()
+                .alert("New Folder", isPresented: $showingNewFolderAlert) {
+                    TextField("Folder Name", text: $newFolderName)
+                    Button("Create") {
+                        if !newFolderName.isEmpty {
+                            viewModel.createNewFolder(named: newFolderName)
+                        }
+                    }
+                    Button("Cancel", role: .cancel) { }
+                }
+        )
         }
     }
 
