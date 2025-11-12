@@ -8,6 +8,13 @@
 import SwiftUI
 import AppKit
 
+// Custom button style that removes ALL macOS styling
+struct NoButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+    }
+}
+
 struct NavigationBar: View {
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var searchViewModel: SearchViewModel
@@ -25,9 +32,8 @@ struct NavigationBar: View {
             }) {
                 Image(systemName: "sidebar.left")
                     .font(.system(size: 16, weight: .medium))
-                    .focusable(false)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(NoButtonStyle())
             .help(settingsManager.settings.showSidebar ? "Hide Sidebar" : "Show Sidebar")
 
             Divider()
