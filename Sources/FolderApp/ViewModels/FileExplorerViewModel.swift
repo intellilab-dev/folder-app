@@ -18,6 +18,7 @@ class FileExplorerViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var viewMode: ViewMode = .default
     @Published var selectedItems: Set<UUID> = []
+    @Published var lastSelectedItem: UUID? // Track last selected item for range selection
     @Published var folderSizes: [URL: Int64] = [:] // Cache folder sizes
 
     // Navigation history
@@ -208,6 +209,7 @@ class FileExplorerViewModel: ObservableObject {
         } else {
             selectedItems.insert(item.id)
         }
+        lastSelectedItem = item.id
     }
 
     func selectAll() {
@@ -220,6 +222,19 @@ class FileExplorerViewModel: ObservableObject {
 
     func isSelected(_ item: FileSystemItem) -> Bool {
         return selectedItems.contains(item.id)
+    }
+
+    func selectRange(from startItem: FileSystemItem, to endItem: FileSystemItem) {
+        guard let startIndex = items.firstIndex(where: { $0.id == startItem.id }),
+              let endIndex = items.firstIndex(where: { $0.id == endItem.id }) else {
+            return
+        }
+
+        let range = startIndex <= endIndex ? startIndex...endIndex : endIndex...startIndex
+        for index in range {
+            selectedItems.insert(items[index].id)
+        }
+        lastSelectedItem = endItem.id
     }
 
     // MARK: - Item Actions

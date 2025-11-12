@@ -52,7 +52,15 @@ struct FileGridView: View {
     private func handleSingleClick(_ item: FileSystemItem) {
         // Single click: select item
         let modifierFlags = NSEvent.modifierFlags
-        if modifierFlags.contains(.command) {
+        if modifierFlags.contains(.shift) {
+            // Shift+Click: range selection
+            if let lastSelected = viewModel.lastSelectedItem,
+               let lastItem = viewModel.items.first(where: { $0.id == lastSelected }) {
+                viewModel.selectRange(from: lastItem, to: item)
+            } else {
+                viewModel.toggleSelection(for: item)
+            }
+        } else if modifierFlags.contains(.command) {
             // Cmd+Click: toggle selection (add/remove from selection)
             viewModel.toggleSelection(for: item)
         } else {
@@ -212,7 +220,9 @@ struct FileContextMenu: View {
     @ObservedObject var clipboardManager: ClipboardManager
     @StateObject private var sidebarManager = SidebarManager.shared
     @State private var showingRenameAlert = false
+    @State private var showingNewFolderAlert = false
     @State private var newName = ""
+    @State private var newFolderName = ""
 
     var body: some View {
         Button("Open") {
@@ -227,6 +237,13 @@ struct FileContextMenu: View {
 
         Button("Cut") {
             clipboardManager.cut(items: [item])
+        }
+
+        Divider()
+
+        Button("New Folder") {
+            newFolderName = "Untitled Folder"
+            showingNewFolderAlert = true
         }
 
         Divider()
@@ -266,6 +283,30 @@ struct FileContextMenu: View {
                 sidebarManager.setColorTag(for: item.path, tag: nil)
             }
         }
+        .background(
+            Group {
+                EmptyView()
+                    .alert("New Folder", isPresented: $showingNewFolderAlert) {
+                        TextField("Folder Name", text: $newFolderName)
+                        Button("Create") {
+                            if !newFolderName.isEmpty {
+                                viewModel.createNewFolder(named: newFolderName)
+                            }
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    }
+                EmptyView()
+                    .alert("Rename", isPresented: $showingRenameAlert) {
+                        TextField("New Name", text: $newName)
+                        Button("Rename") {
+                            if !newName.isEmpty {
+                                viewModel.renameItem(item, to: newName)
+                            }
+                        }
+                        Button("Cancel", role: .cancel) { }
+                    }
+            }
+        )
     }
 
     private func moveToTrash() {

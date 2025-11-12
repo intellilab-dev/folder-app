@@ -43,7 +43,15 @@ struct FileListView: View {
     private func handleSingleClick(_ item: FileSystemItem) {
         // Single click: select item
         let modifierFlags = NSEvent.modifierFlags
-        if modifierFlags.contains(.command) {
+        if modifierFlags.contains(.shift) {
+            // Shift+Click: range selection
+            if let lastSelected = viewModel.lastSelectedItem,
+               let lastItem = viewModel.items.first(where: { $0.id == lastSelected }) {
+                viewModel.selectRange(from: lastItem, to: item)
+            } else {
+                viewModel.toggleSelection(for: item)
+            }
+        } else if modifierFlags.contains(.command) {
             // Cmd+Click: toggle selection (add/remove from selection)
             viewModel.toggleSelection(for: item)
         } else {
