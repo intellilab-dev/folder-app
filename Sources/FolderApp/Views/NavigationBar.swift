@@ -26,20 +26,6 @@ struct NavigationBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Sidebar toggle button
-            Button(action: {
-                settingsManager.settings.showSidebar.toggle()
-            }) {
-                Image(systemName: "sidebar.left")
-                    .font(.system(size: 16, weight: .medium))
-            }
-            .buttonStyle(NoButtonStyle())
-            .focusable(false)
-            .help(settingsManager.settings.showSidebar ? "Hide Sidebar" : "Show Sidebar")
-
-            Divider()
-                .frame(height: 20)
-
             // Back button
             Button(action: { viewModel.navigateBack() }) {
                 Image(systemName: "chevron.left")
