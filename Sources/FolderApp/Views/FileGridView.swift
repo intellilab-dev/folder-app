@@ -29,57 +29,74 @@ struct FileGridView: View {
         VStack(spacing: 0) {
             SortingToolbar(viewModel: viewModel)
 
-            ZStack {
-                // Background overlay for empty space context menu
-                Color.clear
-                    .contentShape(Rectangle())
-                    .contextMenu {
-                        Button("New Folder") {
-                            showNewFolderPrompt()
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: spacing) {
+                    ForEach(viewModel.items) { item in
+                        FileGridItemWithRename(
+                            item: item,
+                            isSelected: viewModel.isSelected(item),
+                            isRenaming: viewModel.renamingItem == item.id,
+                            clipboardManager: clipboardManager,
+                            isDimmed: showDimmed,
+                            viewModel: viewModel,
+                            onSingleClick: { handleSingleClick(item) },
+                            onDoubleClick: { handleDoubleClick(item) }
+                        )
+                        .onDrag {
+                            NSItemProvider(object: item.path as NSURL)
                         }
+                        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                            handleDrop(providers: providers, destination: item)
+                        }
+                        .contextMenu {
+                            FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                        }
+                    }
+                }
+                .padding()
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+                .background(
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button("New Folder") {
+                                showNewFolderPrompt()
+                            }
 
-                        Divider()
+                            Divider()
 
-                        Button("Paste") {
-                            Task {
-                                do {
-                                    _ = try await clipboardManager.paste(to: viewModel.currentPath)
-                                    viewModel.refresh()
-                                } catch {
-                                    print("Paste failed: \(error)")
+                            Button("Paste") {
+                                Task {
+                                    do {
+                                        _ = try await clipboardManager.paste(to: viewModel.currentPath)
+                                        viewModel.refresh()
+                                    } catch {
+                                        print("Paste failed: \(error)")
+                                    }
                                 }
                             }
+                            .disabled(!clipboardManager.hasClipboardContent())
                         }
-                        .disabled(!clipboardManager.hasClipboardContent())
-                    }
-
-                // File grid
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: spacing) {
-                        ForEach(viewModel.items) { item in
-                            FileGridItemWithRename(
-                                item: item,
-                                isSelected: viewModel.isSelected(item),
-                                isRenaming: viewModel.renamingItem == item.id,
-                                clipboardManager: clipboardManager,
-                                isDimmed: showDimmed,
-                                viewModel: viewModel,
-                                onSingleClick: { handleSingleClick(item) },
-                                onDoubleClick: { handleDoubleClick(item) }
-                            )
-                            .onDrag {
-                                NSItemProvider(object: item.path as NSURL)
-                            }
-                            .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                                handleDrop(providers: providers, destination: item)
-                            }
-                            .contextMenu {
-                                FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
-                            }
-                        }
-                    }
-                    .padding()
+                )
+            }
+            .contextMenu {
+                Button("New Folder") {
+                    showNewFolderPrompt()
                 }
+
+                Divider()
+
+                Button("Paste") {
+                    Task {
+                        do {
+                            _ = try await clipboardManager.paste(to: viewModel.currentPath)
+                            viewModel.refresh()
+                        } catch {
+                            print("Paste failed: \(error)")
+                        }
+                    }
+                }
+                .disabled(!clipboardManager.hasClipboardContent())
             }
         }
     }
@@ -358,9 +375,7 @@ struct FileContextMenu: View {
     @ObservedObject var clipboardManager: ClipboardManager
     @StateObject private var sidebarManager = SidebarManager.shared
     @State private var showingRenameAlert = false
-    @State private var showingNewFolderAlert = false
     @State private var newName = ""
-    @State private var newFolderName = ""
 
     var body: some View {
         Button("Open") {
@@ -375,13 +390,6 @@ struct FileContextMenu: View {
 
         Button("Cut") {
             clipboardManager.cut(items: [item])
-        }
-
-        Divider()
-
-        Button("New Folder") {
-            newFolderName = "Untitled Folder"
-            showingNewFolderAlert = true
         }
 
         Divider()
@@ -422,28 +430,16 @@ struct FileContextMenu: View {
             }
         }
         .background(
-            Group {
-                EmptyView()
-                    .alert("New Folder", isPresented: $showingNewFolderAlert) {
-                        TextField("Folder Name", text: $newFolderName)
-                        Button("Create") {
-                            if !newFolderName.isEmpty {
-                                viewModel.createNewFolder(named: newFolderName)
-                            }
+            EmptyView()
+                .alert("Rename", isPresented: $showingRenameAlert) {
+                    TextField("New Name", text: $newName)
+                    Button("Rename") {
+                        if !newName.isEmpty {
+                            viewModel.renameItem(item, to: newName)
                         }
-                        Button("Cancel", role: .cancel) { }
                     }
-                EmptyView()
-                    .alert("Rename", isPresented: $showingRenameAlert) {
-                        TextField("New Name", text: $newName)
-                        Button("Rename") {
-                            if !newName.isEmpty {
-                                viewModel.renameItem(item, to: newName)
-                            }
-                        }
-                        Button("Cancel", role: .cancel) { }
-                    }
-            }
+                    Button("Cancel", role: .cancel) { }
+                }
         )
     }
 

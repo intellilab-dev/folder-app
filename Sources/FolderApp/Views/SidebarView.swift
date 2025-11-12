@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 struct SidebarView: View {
     @ObservedObject var sidebarManager: SidebarManager
@@ -24,7 +25,15 @@ struct SidebarView: View {
                         isSelected: fileExplorerViewModel.currentPath == favorite.path,
                         sidebarManager: sidebarManager
                     ) {
-                        fileExplorerViewModel.navigate(to: favorite.path)
+                        // Check if file or folder
+                        var isDirectory: ObjCBool = false
+                        if FileManager.default.fileExists(atPath: favorite.path.path, isDirectory: &isDirectory) {
+                            if isDirectory.boolValue {
+                                fileExplorerViewModel.navigate(to: favorite.path)
+                            } else {
+                                NSWorkspace.shared.open(favorite.path)
+                            }
+                        }
                     }
                     .onDrag {
                         NSItemProvider(object: favorite.id.uuidString as NSString)
@@ -103,7 +112,15 @@ struct SidebarView: View {
                             isSelected: fileExplorerViewModel.currentPath == path,
                             sidebarManager: sidebarManager
                         ) {
-                            fileExplorerViewModel.navigate(to: path)
+                            // Check if file or folder
+                            var isDirectory: ObjCBool = false
+                            if FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory) {
+                                if isDirectory.boolValue {
+                                    fileExplorerViewModel.navigate(to: path)
+                                } else {
+                                    NSWorkspace.shared.open(path)
+                                }
+                            }
                         }
                     }
                 }

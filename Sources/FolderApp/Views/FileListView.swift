@@ -25,53 +25,46 @@ struct FileListView: View {
         VStack(spacing: 0) {
             SortingToolbar(viewModel: viewModel)
 
-            ZStack {
-                // Background overlay for empty space context menu
-                Color.clear
-                    .contentShape(Rectangle())
-                    .contextMenu {
-                        Button("New Folder") {
-                            showNewFolderPrompt()
+            List(viewModel.items) { item in
+                FileListRowWithRename(
+                    item: item,
+                    isSelected: viewModel.isSelected(item),
+                    isRenaming: viewModel.renamingItem == item.id,
+                    clipboardManager: clipboardManager,
+                    fileExplorerViewModel: viewModel,
+                    isDimmed: showDimmed,
+                    onSingleClick: { handleSingleClick(item) },
+                    onDoubleClick: { handleDoubleClick(item) }
+                )
+                .onDrag {
+                    NSItemProvider(object: item.path as NSURL)
+                }
+                .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                    handleDrop(providers: providers, destination: item)
+                }
+                .contextMenu {
+                    FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                }
+            }
+            .listStyle(.plain)
+            .contextMenu {
+                Button("New Folder") {
+                    showNewFolderPrompt()
+                }
+
+                Divider()
+
+                Button("Paste") {
+                    Task {
+                        do {
+                            _ = try await clipboardManager.paste(to: viewModel.currentPath)
+                            viewModel.refresh()
+                        } catch {
+                            print("Paste failed: \(error)")
                         }
-
-                        Divider()
-
-                        Button("Paste") {
-                            Task {
-                                do {
-                                    _ = try await clipboardManager.paste(to: viewModel.currentPath)
-                                    viewModel.refresh()
-                                } catch {
-                                    print("Paste failed: \(error)")
-                                }
-                            }
-                        }
-                        .disabled(!clipboardManager.hasClipboardContent())
-                    }
-
-                // File list
-                List(viewModel.items) { item in
-                    FileListRowWithRename(
-                        item: item,
-                        isSelected: viewModel.isSelected(item),
-                        isRenaming: viewModel.renamingItem == item.id,
-                        clipboardManager: clipboardManager,
-                        fileExplorerViewModel: viewModel,
-                        isDimmed: showDimmed,
-                        onSingleClick: { handleSingleClick(item) },
-                        onDoubleClick: { handleDoubleClick(item) }
-                    )
-                    .onDrag {
-                        NSItemProvider(object: item.path as NSURL)
-                    }
-                    .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                        handleDrop(providers: providers, destination: item)
-                    }
-                    .contextMenu {
-                        FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
                     }
                 }
-                .listStyle(.plain)
+                .disabled(!clipboardManager.hasClipboardContent())
             }
         }
     }
