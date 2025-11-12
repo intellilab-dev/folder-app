@@ -11,7 +11,8 @@ import AppKit
 class WindowManager: ObservableObject {
     static let shared = WindowManager()
 
-    private var windows: [NSWindow] = []
+    // Store window controllers instead of windows for proper lifecycle management
+    private var windowControllers: [NSWindowController] = []
 
     private init() {
         // Subscribe to window close notifications
@@ -23,17 +24,17 @@ class WindowManager: ObservableObject {
         )
     }
 
-    func addWindow(_ window: NSWindow) {
-        // Prevent window from being released when closed
-        window.releasedWhenClosed = false
-        windows.append(window)
+    func addWindowController(_ controller: NSWindowController) {
+        // Window controllers properly manage their windows' lifecycle
+        // No need to set releasedWhenClosed manually
+        windowControllers.append(controller)
     }
 
     @objc private func windowWillClose(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
 
-        // Remove window from array when it closes
-        windows.removeAll { $0 == window }
+        // Remove window controller when its window closes
+        windowControllers.removeAll { $0.window == window }
     }
 
     deinit {

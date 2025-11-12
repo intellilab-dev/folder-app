@@ -10,8 +10,8 @@ import SwiftUI
 
 // Create app delegate
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var window: NSWindow?
-    var settingsWindow: NSWindow?
+    var mainWindowController: NSWindowController?
+    var settingsWindowController: NSWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenu()
@@ -24,30 +24,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             andEventID: AEEventID(kAEGetURL)
         )
 
-        // Create the main window
+        // Create the main window using window controller
         let contentView = ContentView()
             .environmentObject(SettingsManager.shared)
 
-        window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
+        mainWindowController = SwiftUIWindowController(
+            rootView: contentView,
+            title: "Folder",
+            size: NSSize(width: 1000, height: 700)
         )
 
-        window?.titlebarAppearsTransparent = true
-        window?.appearance = NSAppearance(named: .darkAqua)
-        window?.center()
-        window?.title = "Folder"
-        window?.contentView = NSHostingView(rootView: contentView)
-        window?.backgroundColor = NSColor.folderSidebar
-        window?.makeKeyAndOrderFront(nil)
-        window?.setFrameAutosaveName("MainWindow")
+        mainWindowController?.window?.setFrameAutosaveName("MainWindow")
+        mainWindowController?.showWindow(nil)
 
         // Add to WindowManager for proper lifecycle management
-        if let window = window {
-            WindowManager.shared.addWindow(window)
-        }
+        WindowManager.shared.addWindowController(mainWindowController!)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -81,23 +72,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let contentView = ContentView(initialPath: folderURL)
                     .environmentObject(SettingsManager.shared)
 
-                let newWindow = NSWindow(
-                    contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
-                    styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-                    backing: .buffered,
-                    defer: false
+                let windowController = SwiftUIWindowController(
+                    rootView: contentView,
+                    title: "Folder - \(folderURL.lastPathComponent)",
+                    size: NSSize(width: 1000, height: 700)
                 )
 
-                newWindow.titlebarAppearsTransparent = true
-                newWindow.appearance = NSAppearance(named: .darkAqua)
-                newWindow.center()
-                newWindow.title = "Folder - \(folderURL.lastPathComponent)"
-                newWindow.contentView = NSHostingView(rootView: contentView)
-                newWindow.backgroundColor = NSColor.folderSidebar
-                newWindow.makeKeyAndOrderFront(nil)
-                newWindow.setFrameAutosaveName("URLWindow-\(UUID().uuidString)")
+                windowController.window?.setFrameAutosaveName("URLWindow-\(UUID().uuidString)")
+                windowController.showWindow(nil)
 
-                WindowManager.shared.addWindow(newWindow)
+                WindowManager.shared.addWindowController(windowController)
 
                 NSApp.activate(ignoringOtherApps: true)
             }
@@ -105,24 +89,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @MainActor @objc func showSettings() {
-        if settingsWindow == nil {
+        if settingsWindowController == nil {
             let settingsView = SettingsView()
                 .environmentObject(SettingsManager.shared)
 
-            settingsWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 550, height: 700),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
+            settingsWindowController = SwiftUIWindowController(
+                rootView: settingsView,
+                title: "Settings",
+                size: NSSize(width: 550, height: 700),
+                styleMask: [.titled, .closable]
             )
 
-            settingsWindow?.center()
-            settingsWindow?.title = "Settings"
-            settingsWindow?.contentView = NSHostingView(rootView: settingsView)
-            settingsWindow?.level = .floating
+            settingsWindowController?.window?.level = .floating
         }
 
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        settingsWindowController?.showWindow(nil)
     }
 
     private func setupMenu() {

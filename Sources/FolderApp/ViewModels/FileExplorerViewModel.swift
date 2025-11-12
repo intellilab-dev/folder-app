@@ -320,24 +320,17 @@ class FileExplorerViewModel: ObservableObject {
         let contentView = ContentView(initialPath: path)
             .environmentObject(SettingsManager.shared)
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
+        let windowController = SwiftUIWindowController(
+            rootView: contentView,
+            title: "Folder - \(path.lastPathComponent)",
+            size: NSSize(width: 1000, height: 700)
         )
 
-        window.titlebarAppearsTransparent = true
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.center()
-        window.title = "Folder - \(path.lastPathComponent)"
-        window.contentView = NSHostingView(rootView: contentView)
-        window.backgroundColor = NSColor.folderSidebar
-        window.makeKeyAndOrderFront(nil)
-        window.setFrameAutosaveName("BrowserWindow-\(UUID().uuidString)")
+        windowController.window?.setFrameAutosaveName("BrowserWindow-\(UUID().uuidString)")
+        windowController.showWindow(nil)
 
         // Keep a reference to prevent deallocation
-        WindowManager.shared.addWindow(window)
+        WindowManager.shared.addWindowController(windowController)
     }
 
     // MARK: - View Mode
