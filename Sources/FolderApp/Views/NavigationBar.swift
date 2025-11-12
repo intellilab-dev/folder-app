@@ -25,6 +25,7 @@ struct NavigationBar: View {
             }) {
                 Image(systemName: "sidebar.left")
                     .font(.system(size: 16, weight: .medium))
+                    .focusable(false)
             }
             .buttonStyle(.plain)
             .help(settingsManager.settings.showSidebar ? "Hide Sidebar" : "Show Sidebar")
