@@ -19,6 +19,7 @@ struct FileListView: View {
     @State private var lastClickedItem: UUID?
     @State private var lastClickTime: Date?
     @FocusState private var renamingFocusedID: UUID?
+    @State private var scrollPosition: UUID?
 
     private let clickPauseInterval: TimeInterval = 0.5
 
@@ -53,6 +54,10 @@ struct FileListView: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        // Save scroll position before dismissing
+                        if let currentRenaming = viewModel.renamingItem {
+                            scrollPosition = currentRenaming
+                        }
                         // Dismiss rename mode when clicking empty space
                         renamingFocusedID = nil
                         viewModel.commitRename()
@@ -191,16 +196,28 @@ struct FileListRowWithRename: View {
     @FocusState.Binding var renamingFocusedID: UUID?
     @StateObject private var iconService = IconService.shared
     @StateObject private var sidebarManager = SidebarManager.shared
+    @StateObject private var thumbnailService = ThumbnailService.shared
+    @State private var thumbnail: NSImage?
 
     var body: some View {
         if isRenaming {
             // Rename mode
             HStack(spacing: 12) {
-                // Icon
-                iconService.swiftUIIcon(for: item, size: 20)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
+                // Icon or Thumbnail
+                ZStack {
+                    if let thumbnail = thumbnail {
+                        Image(nsImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 20, height: 20)
+                            .clipShape(RoundedRectangle(cornerRadius: 2))
+                    } else {
+                        iconService.swiftUIIcon(for: item, size: 20)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                    }
+                }
 
                 // Rename TextField
                 TextField("", text: $fileExplorerViewModel.renameText, onCommit: {
@@ -226,6 +243,12 @@ struct FileListRowWithRename: View {
             .background(Color.folderAccent.opacity(0.1))
             .cornerRadius(4)
             .transaction { $0.animation = nil }
+            .task {
+                // Load thumbnail when entering rename mode
+                if thumbnailService.supportsThumbnail(for: item.path.path) {
+                    thumbnail = await thumbnailService.getThumbnail(for: item.path.path, size: CGSize(width: 40, height: 40))
+                }
+            }
         } else {
             // Normal display mode
             FileListRow(

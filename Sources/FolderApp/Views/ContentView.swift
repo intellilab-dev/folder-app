@@ -183,6 +183,14 @@ struct ContentView: View {
                 }
                 return false
 
+            case "t":
+                // Cmd+T: Open selected folder in new window (only when not in text field)
+                if !isTextField {
+                    openSelectedFolderInNewWindow()
+                    return true
+                }
+                return false
+
             default:
                 return false
             }
@@ -345,6 +353,15 @@ struct ContentView: View {
                 print("Paste failed: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func openSelectedFolderInNewWindow() {
+        guard let firstSelected = viewModel.selectedItems.first,
+              let item = viewModel.items.first(where: { $0.id == firstSelected }),
+              item.type == .folder else {
+            return
+        }
+        viewModel.openItem(item, openInNewWindow: true)
     }
 
     // MARK: - File Operations

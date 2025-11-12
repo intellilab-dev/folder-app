@@ -31,44 +31,49 @@ struct FileGridView: View {
         VStack(spacing: 0) {
             SortingToolbar(viewModel: viewModel)
 
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: spacing) {
-                    ForEach(viewModel.items) { item in
-                        FileGridItemWithRename(
-                            item: item,
-                            isSelected: viewModel.isSelected(item),
-                            isRenaming: viewModel.renamingItem == item.id,
-                            clipboardManager: clipboardManager,
-                            isDimmed: showDimmed,
-                            viewModel: viewModel,
-                            onSingleClick: { handleSingleClick(item) },
-                            onDoubleClick: { handleDoubleClick(item) },
-                            renamingFocusedID: $renamingFocusedID
-                        )
-                        .onDrag {
-                            NSItemProvider(object: item.path as NSURL)
-                        }
-                        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                            handleDrop(providers: providers, destination: item)
-                        }
-                        .contextMenu {
-                            FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
-                        }
-                    }
-                }
-                .padding()
-                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(
-                Color.white.opacity(0.001)
+            ZStack {
+                // Background tap catcher - captures taps in empty space
+                Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        // Dismiss rename mode when clicking empty space
-                        renamingFocusedID = nil
-                        viewModel.commitRename()
+                        if viewModel.renamingItem != nil {
+                            renamingFocusedID = nil
+                            viewModel.commitRename()
+                        }
                     }
-            )
+                    .allowsHitTesting(viewModel.renamingItem != nil)  // Only capture taps when renaming
+
+                // Main scroll content
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: spacing) {
+                        ForEach(viewModel.items) { item in
+                            FileGridItemWithRename(
+                                item: item,
+                                isSelected: viewModel.isSelected(item),
+                                isRenaming: viewModel.renamingItem == item.id,
+                                clipboardManager: clipboardManager,
+                                isDimmed: showDimmed,
+                                viewModel: viewModel,
+                                onSingleClick: { handleSingleClick(item) },
+                                onDoubleClick: { handleDoubleClick(item) },
+                                renamingFocusedID: $renamingFocusedID
+                            )
+                            .onDrag {
+                                NSItemProvider(object: item.path as NSURL)
+                            }
+                            .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                                handleDrop(providers: providers, destination: item)
+                            }
+                            .contextMenu {
+                                FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
             .contextMenu {
                 Button("New Folder") {
                     viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
@@ -201,16 +206,29 @@ struct FileGridItemWithRename: View {
     let onDoubleClick: () -> Void
     @FocusState.Binding var renamingFocusedID: UUID?
     @StateObject private var iconService = IconService.shared
+    @StateObject private var thumbnailService = ThumbnailService.shared
+    @State private var thumbnail: NSImage?
 
     var body: some View {
         if isRenaming {
             // Rename mode
             VStack(spacing: 8) {
-                iconService.swiftUIIcon(for: item, size: CGFloat(viewModel.viewMode.iconSize))
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: CGFloat(viewModel.viewMode.iconSize), height: CGFloat(viewModel.viewMode.iconSize))
-                    .opacity(isDimmed && clipboardManager.clipboardItems.contains(where: { $0.id == item.id }) ? 0.5 : 1.0)
+                // Use thumbnail if available, otherwise use icon
+                ZStack {
+                    if let thumbnail = thumbnail {
+                        Image(nsImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: CGFloat(viewModel.viewMode.iconSize), height: CGFloat(viewModel.viewMode.iconSize))
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    } else {
+                        iconService.swiftUIIcon(for: item, size: CGFloat(viewModel.viewMode.iconSize))
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: CGFloat(viewModel.viewMode.iconSize), height: CGFloat(viewModel.viewMode.iconSize))
+                    }
+                }
+                .opacity(isDimmed && clipboardManager.clipboardItems.contains(where: { $0.id == item.id }) ? 0.5 : 1.0)
 
                 TextField("", text: $viewModel.renameText, onCommit: {
                     viewModel.commitRename()
@@ -238,6 +256,12 @@ struct FileGridItemWithRename: View {
                     .stroke(Color.folderAccent, lineWidth: isSelected ? 2 : 0)
             )
             .transaction { $0.animation = nil }
+            .task {
+                // Load thumbnail when entering rename mode
+                if thumbnailService.supportsThumbnail(for: item.path.path) {
+                    thumbnail = await thumbnailService.getThumbnail(for: item.path.path, size: CGSize(width: 128, height: 128))
+                }
+            }
         } else {
             // Normal display mode
             FileGridItem(item: item, isSelected: isSelected, clipboardManager: clipboardManager, isDimmed: isDimmed)
@@ -363,6 +387,14 @@ struct FileContextMenu: View {
             viewModel.openItem(item)
         }
 
+        // Only show "Open in New Window" for folders
+        if item.type == .folder {
+            Button("Open in New Window") {
+                viewModel.openItem(item, openInNewWindow: true)
+            }
+            .keyboardShortcut("t", modifiers: .command)
+        }
+
         // Only show "Open With" for files (not folders)
         if item.type == .file {
             Menu("Open With") {
@@ -423,11 +455,19 @@ struct FileContextMenu: View {
         Divider()
 
         Button("Copy") {
-            clipboardManager.copy(items: [item])
+            // Copy all selected items if item is in selection, otherwise just this item
+            let itemsToCopy = viewModel.isSelected(item) ?
+                viewModel.items.filter { viewModel.selectedItems.contains($0.id) } :
+                [item]
+            clipboardManager.copy(items: itemsToCopy)
         }
 
         Button("Cut") {
-            clipboardManager.cut(items: [item])
+            // Cut all selected items if item is in selection, otherwise just this item
+            let itemsToCut = viewModel.isSelected(item) ?
+                viewModel.items.filter { viewModel.selectedItems.contains($0.id) } :
+                [item]
+            clipboardManager.cut(items: itemsToCut)
         }
 
         Divider()

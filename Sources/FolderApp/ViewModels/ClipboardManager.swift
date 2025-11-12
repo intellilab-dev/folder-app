@@ -64,12 +64,20 @@ class ClipboardManager: ObservableObject {
 
         for sourceURL in urls {
             let fileName = sourceURL.lastPathComponent
-            let destinationURL = destination.appendingPathComponent(fileName)
+            var destinationURL = destination.appendingPathComponent(fileName)
+
+            // Check if we're pasting into the same folder
+            let isSameFolder = sourceURL.deletingLastPathComponent() == destination
 
             // Check if destination already exists
             if fileSystemService.pathExists(destinationURL) {
-                conflicts.append(sourceURL)
-                continue
+                if isSameFolder && clipboardAction == .copy {
+                    // Auto-duplicate when copying in same folder (Finder-style)
+                    destinationURL = generateUniqueURL(for: destinationURL)
+                } else {
+                    conflicts.append(sourceURL)
+                    continue
+                }
             }
 
             do {

@@ -44,7 +44,18 @@ class FileExplorerViewModel: ObservableObject {
 
     init(initialPath: URL? = nil) {
         // Start at home directory or last opened folder
-        if let path = initialPath ?? settingsManager.settings.lastOpenedFolder {
+        if let path = initialPath {
+            // Validate it's a directory
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory),
+               isDirectory.boolValue {
+                self.currentPath = path
+            } else {
+                // If file path provided, use parent directory
+                print("Warning: Provided path is not a directory, using parent: \(path.path)")
+                self.currentPath = path.deletingLastPathComponent()
+            }
+        } else if let path = settingsManager.settings.lastOpenedFolder {
             self.currentPath = path
         } else {
             self.currentPath = fileSystemService.homeDirectory()
@@ -84,6 +95,16 @@ class FileExplorerViewModel: ObservableObject {
     func loadContents() async {
         isLoading = true
         errorMessage = nil
+
+        // Validate path is a directory
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: currentPath.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            self.errorMessage = "Invalid path: Not a directory"
+            self.items = []
+            self.isLoading = false
+            return
+        }
 
         do {
             let showHidden = settingsManager.settings.showHiddenFiles
@@ -270,10 +291,15 @@ class FileExplorerViewModel: ObservableObject {
 
     // MARK: - Item Actions
 
-    func openItem(_ item: FileSystemItem) {
+    func openItem(_ item: FileSystemItem, openInNewWindow: Bool = false) {
         if item.type == .folder {
-            // Always open folders in new window
-            openNewWindow(path: item.path)
+            if openInNewWindow {
+                // Open in new window
+                openNewWindow(path: item.path)
+            } else {
+                // Navigate in current window (default behavior)
+                navigate(to: item.path)
+            }
         } else {
             // Open file with default application
             NSWorkspace.shared.open(item.path)
@@ -281,6 +307,15 @@ class FileExplorerViewModel: ObservableObject {
     }
 
     private func openNewWindow(path: URL) {
+        // Validate that path is actually a directory
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            print("Error: Cannot open window - path is not a directory: \(path.path)")
+            errorMessage = "Cannot open new window: Not a folder"
+            return
+        }
+
         let contentView = ContentView(initialPath: path)
             .environmentObject(SettingsManager.shared)
 
