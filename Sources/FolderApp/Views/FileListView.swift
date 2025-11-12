@@ -16,68 +16,84 @@ struct FileListView: View {
 
     @State private var showingNewFolderAlert = false
     @State private var newFolderName = ""
+    @State private var lastClickedItem: UUID?
+    @State private var lastClickTime: Date?
+
+    private let clickPauseInterval: TimeInterval = 0.5
 
     var body: some View {
         VStack(spacing: 0) {
             SortingToolbar(viewModel: viewModel)
 
-            List(viewModel.items) { item in
-            FileListRow(item: item, isSelected: viewModel.isSelected(item), clipboardManager: clipboardManager, fileExplorerViewModel: viewModel, isDimmed: showDimmed)
-                .onTapGesture(count: 2) {
-                    handleDoubleClick(item)
-                }
-                .onTapGesture {
-                    handleSingleClick(item)
-                }
-                .onDrag {
-                    NSItemProvider(object: item.path as NSURL)
-                }
-                .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                    handleDrop(providers: providers, destination: item)
-                }
-                .contextMenu {
-                    FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
-                }
-        }
-        .listStyle(.plain)
-        .contextMenu {
-            Button("New Folder") {
-                newFolderName = "Untitled Folder"
-                showingNewFolderAlert = true
-            }
-
-            Divider()
-
-            Button("Paste") {
-                Task {
-                    do {
-                        _ = try await clipboardManager.paste(to: viewModel.currentPath)
-                        viewModel.refresh()
-                    } catch {
-                        print("Paste failed: \(error)")
-                    }
-                }
-            }
-            .disabled(!clipboardManager.hasClipboardContent())
-        }
-        .background(
-            EmptyView()
-                .alert("New Folder", isPresented: $showingNewFolderAlert) {
-                    TextField("Folder Name", text: $newFolderName)
-                    Button("Create") {
-                        if !newFolderName.isEmpty {
-                            viewModel.createNewFolder(named: newFolderName)
+            ZStack {
+                // Background overlay for empty space context menu
+                Color.clear
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        Button("New Folder") {
+                            showNewFolderPrompt()
                         }
+
+                        Divider()
+
+                        Button("Paste") {
+                            Task {
+                                do {
+                                    _ = try await clipboardManager.paste(to: viewModel.currentPath)
+                                    viewModel.refresh()
+                                } catch {
+                                    print("Paste failed: \(error)")
+                                }
+                            }
+                        }
+                        .disabled(!clipboardManager.hasClipboardContent())
                     }
-                    Button("Cancel", role: .cancel) { }
+
+                // File list
+                List(viewModel.items) { item in
+                    FileListRowWithRename(
+                        item: item,
+                        isSelected: viewModel.isSelected(item),
+                        isRenaming: viewModel.renamingItem == item.id,
+                        clipboardManager: clipboardManager,
+                        fileExplorerViewModel: viewModel,
+                        isDimmed: showDimmed,
+                        onSingleClick: { handleSingleClick(item) },
+                        onDoubleClick: { handleDoubleClick(item) }
+                    )
+                    .onDrag {
+                        NSItemProvider(object: item.path as NSURL)
+                    }
+                    .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                        handleDrop(providers: providers, destination: item)
+                    }
+                    .contextMenu {
+                        FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                    }
                 }
-        )
+                .listStyle(.plain)
+            }
         }
     }
 
     private func handleSingleClick(_ item: FileSystemItem) {
-        // Single click: select item
         let modifierFlags = NSEvent.modifierFlags
+        let now = Date()
+
+        // Check for Finder-style click-pause-click rename pattern
+        if !modifierFlags.contains(.shift) && !modifierFlags.contains(.command),
+           lastClickedItem == item.id,
+           let lastTime = lastClickTime,
+           now.timeIntervalSince(lastTime) >= clickPauseInterval && now.timeIntervalSince(lastTime) <= 2.0,
+           viewModel.isSelected(item) {
+            // Second click on same item after pause - enter rename mode
+            viewModel.startRenaming(item)
+            lastClickedItem = nil
+            lastClickTime = nil
+            return
+        }
+
+        // Handle selection
         if modifierFlags.contains(.shift) {
             // Shift+Click: range selection
             if let lastSelected = viewModel.lastSelectedItem,
@@ -94,6 +110,10 @@ struct FileListView: View {
             viewModel.clearSelection()
             viewModel.toggleSelection(for: item)
         }
+
+        // Track click for rename detection
+        lastClickedItem = item.id
+        lastClickTime = now
     }
 
     private func handleDoubleClick(_ item: FileSystemItem) {
@@ -139,6 +159,89 @@ struct FileListView: View {
         }
 
         return true
+    }
+
+    private func showNewFolderPrompt() {
+        let alert = NSAlert()
+        alert.messageText = "New Folder"
+        alert.informativeText = "Enter a name for the new folder:"
+        alert.alertStyle = .informational
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        textField.stringValue = "Untitled Folder"
+        alert.accessoryView = textField
+
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            let folderName = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !folderName.isEmpty {
+                viewModel.createNewFolder(named: folderName, autoRename: true)
+            }
+        }
+    }
+}
+
+// MARK: - File List Row with Rename Support
+
+struct FileListRowWithRename: View {
+    let item: FileSystemItem
+    let isSelected: Bool
+    let isRenaming: Bool
+    let clipboardManager: ClipboardManager
+    @ObservedObject var fileExplorerViewModel: FileExplorerViewModel
+    let isDimmed: Bool
+    let onSingleClick: () -> Void
+    let onDoubleClick: () -> Void
+    @StateObject private var iconService = IconService.shared
+    @StateObject private var sidebarManager = SidebarManager.shared
+
+    var body: some View {
+        if isRenaming {
+            // Rename mode
+            HStack(spacing: 12) {
+                // Icon
+                iconService.swiftUIIcon(for: item, size: 20)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 20, height: 20)
+
+                // Rename TextField
+                TextField("", text: $fileExplorerViewModel.renameText, onCommit: {
+                    fileExplorerViewModel.commitRename()
+                })
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(4)
+                .onExitCommand {
+                    fileExplorerViewModel.cancelRename()
+                }
+
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 8)
+            .background(Color.folderAccent.opacity(0.1))
+            .cornerRadius(4)
+        } else {
+            // Normal display mode
+            FileListRow(
+                item: item,
+                isSelected: isSelected,
+                clipboardManager: clipboardManager,
+                fileExplorerViewModel: fileExplorerViewModel,
+                isDimmed: isDimmed
+            )
+            .onTapGesture(count: 2) {
+                onDoubleClick()
+            }
+            .onTapGesture {
+                onSingleClick()
+            }
+        }
     }
 }
 

@@ -16,8 +16,11 @@ struct FileGridView: View {
 
     @State private var showingNewFolderAlert = false
     @State private var newFolderName = ""
+    @State private var lastClickedItem: UUID?
+    @State private var lastClickTime: Date?
 
     private let spacing: CGFloat = 16
+    private let clickPauseInterval: TimeInterval = 0.5 // Time window for click-pause-click
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: CGFloat(viewModel.viewMode.iconSize + 40)), spacing: spacing)]
     }
@@ -26,67 +29,79 @@ struct FileGridView: View {
         VStack(spacing: 0) {
             SortingToolbar(viewModel: viewModel)
 
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: spacing) {
-                ForEach(viewModel.items) { item in
-                    FileGridItem(item: item, isSelected: viewModel.isSelected(item), clipboardManager: clipboardManager, isDimmed: showDimmed)
-                        .onTapGesture(count: 2) {
-                            handleDoubleClick(item)
+            ZStack {
+                // Background overlay for empty space context menu
+                Color.clear
+                    .contentShape(Rectangle())
+                    .contextMenu {
+                        Button("New Folder") {
+                            showNewFolderPrompt()
                         }
-                        .onTapGesture {
-                            handleSingleClick(item)
-                        }
-                        .onDrag {
-                            NSItemProvider(object: item.path as NSURL)
-                        }
-                        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                            handleDrop(providers: providers, destination: item)
-                        }
-                        .contextMenu {
-                            FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
-                        }
-                }
-            }
-            .padding()
-            .contextMenu {
-                Button("New Folder") {
-                    newFolderName = "Untitled Folder"
-                    showingNewFolderAlert = true
-                }
 
-                Divider()
+                        Divider()
 
-                Button("Paste") {
-                    Task {
-                        do {
-                            _ = try await clipboardManager.paste(to: viewModel.currentPath)
-                            viewModel.refresh()
-                        } catch {
-                            print("Paste failed: \(error)")
-                        }
-                    }
-                }
-                .disabled(!clipboardManager.hasClipboardContent())
-            }
-            .background(
-                EmptyView()
-                    .alert("New Folder", isPresented: $showingNewFolderAlert) {
-                        TextField("Folder Name", text: $newFolderName)
-                        Button("Create") {
-                            if !newFolderName.isEmpty {
-                                viewModel.createNewFolder(named: newFolderName)
+                        Button("Paste") {
+                            Task {
+                                do {
+                                    _ = try await clipboardManager.paste(to: viewModel.currentPath)
+                                    viewModel.refresh()
+                                } catch {
+                                    print("Paste failed: \(error)")
+                                }
                             }
                         }
-                        Button("Cancel", role: .cancel) { }
+                        .disabled(!clipboardManager.hasClipboardContent())
                     }
-            )
+
+                // File grid
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: spacing) {
+                        ForEach(viewModel.items) { item in
+                            FileGridItemWithRename(
+                                item: item,
+                                isSelected: viewModel.isSelected(item),
+                                isRenaming: viewModel.renamingItem == item.id,
+                                clipboardManager: clipboardManager,
+                                isDimmed: showDimmed,
+                                viewModel: viewModel,
+                                onSingleClick: { handleSingleClick(item) },
+                                onDoubleClick: { handleDoubleClick(item) }
+                            )
+                            .onDrag {
+                                NSItemProvider(object: item.path as NSURL)
+                            }
+                            .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                                handleDrop(providers: providers, destination: item)
+                            }
+                            .contextMenu {
+                                FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                            }
+                        }
+                    }
+                    .padding()
+                }
             }
         }
     }
 
     private func handleSingleClick(_ item: FileSystemItem) {
-        // Single click: select item
         let modifierFlags = NSEvent.modifierFlags
+        let now = Date()
+
+        // Check for Finder-style click-pause-click rename pattern
+        if !modifierFlags.contains(.shift) && !modifierFlags.contains(.command),
+           lastClickedItem == item.id,
+           let lastTime = lastClickTime,
+           now.timeIntervalSince(lastTime) >= clickPauseInterval && now.timeIntervalSince(lastTime) <= 2.0,
+           viewModel.isSelected(item) {
+            // Second click on same item after pause - enter rename mode
+            viewModel.startRenaming(item)
+            lastClickedItem = nil
+            lastClickTime = nil
+            return
+        }
+
+        // Handle selection
         if modifierFlags.contains(.shift) {
             // Shift+Click: range selection
             if let lastSelected = viewModel.lastSelectedItem,
@@ -103,6 +118,10 @@ struct FileGridView: View {
             viewModel.clearSelection()
             viewModel.toggleSelection(for: item)
         }
+
+        // Track click for rename detection
+        lastClickedItem = item.id
+        lastClickTime = now
     }
 
     private func handleDoubleClick(_ item: FileSystemItem) {
@@ -148,6 +167,90 @@ struct FileGridView: View {
         }
 
         return true
+    }
+
+    private func showNewFolderPrompt() {
+        let alert = NSAlert()
+        alert.messageText = "New Folder"
+        alert.informativeText = "Enter a name for the new folder:"
+        alert.alertStyle = .informational
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        textField.stringValue = "Untitled Folder"
+        alert.accessoryView = textField
+
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            let folderName = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !folderName.isEmpty {
+                viewModel.createNewFolder(named: folderName, autoRename: true)
+            }
+        }
+    }
+}
+
+// MARK: - File Grid Item with Rename Support
+
+struct FileGridItemWithRename: View {
+    let item: FileSystemItem
+    let isSelected: Bool
+    let isRenaming: Bool
+    let clipboardManager: ClipboardManager
+    let isDimmed: Bool
+    @ObservedObject var viewModel: FileExplorerViewModel
+    let onSingleClick: () -> Void
+    let onDoubleClick: () -> Void
+    @StateObject private var iconService = IconService.shared
+
+    var body: some View {
+        if isRenaming {
+            // Rename mode
+            VStack(spacing: 8) {
+                iconService.swiftUIIcon(for: item, size: CGFloat(viewModel.viewMode.iconSize))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: CGFloat(viewModel.viewMode.iconSize), height: CGFloat(viewModel.viewMode.iconSize))
+                    .opacity(isDimmed && clipboardManager.clipboardItems.contains(where: { $0.id == item.id }) ? 0.5 : 1.0)
+
+                TextField("", text: $viewModel.renameText, onCommit: {
+                    viewModel.commitRename()
+                })
+                .textFieldStyle(.plain)
+                .multilineTextAlignment(.center)
+                .font(.system(size: 12))
+                .frame(width: CGFloat(viewModel.viewMode.iconSize + 40))
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(4)
+                .onExitCommand {
+                    viewModel.cancelRename()
+                }
+                .onAppear {
+                    // Auto-focus the text field
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        NSApp.keyWindow?.makeFirstResponder(nil)
+                    }
+                }
+            }
+            .padding(8)
+            .background(isSelected ? Color.folderAccent.opacity(0.2) : Color.clear)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.folderAccent, lineWidth: isSelected ? 2 : 0)
+            )
+        } else {
+            // Normal display mode
+            FileGridItem(item: item, isSelected: isSelected, clipboardManager: clipboardManager, isDimmed: isDimmed)
+                .onTapGesture(count: 2) {
+                    onDoubleClick()
+                }
+                .onTapGesture {
+                    onSingleClick()
+                }
+        }
     }
 }
 

@@ -20,6 +20,8 @@ class FileExplorerViewModel: ObservableObject {
     @Published var selectedItems: Set<UUID> = []
     @Published var lastSelectedItem: UUID? // Track last selected item for range selection
     @Published var folderSizes: [URL: Int64] = [:] // Cache folder sizes
+    @Published var renamingItem: UUID? // Track which item is being renamed
+    @Published var renameText: String = "" // Current text in rename field
 
     // Navigation history
     @Published var canGoBack = false
@@ -384,10 +386,22 @@ class FileExplorerViewModel: ObservableObject {
 
     // MARK: - File Operations
 
-    func createNewFolder(named name: String) {
+    func createNewFolder(named name: String, autoRename: Bool = false) {
         do {
             try fileSystemService.createFolder(at: currentPath, named: name)
-            refresh()
+
+            if autoRename {
+                // Refresh to get the new folder, then start renaming it
+                Task {
+                    await loadContents()
+                    // Find the newly created folder
+                    if let newFolder = items.first(where: { $0.name == name && $0.type == .folder }) {
+                        startRenaming(newFolder)
+                    }
+                }
+            } else {
+                refresh()
+            }
         } catch {
             errorMessage = "Failed to create folder: \(error.localizedDescription)"
         }
@@ -402,6 +416,29 @@ class FileExplorerViewModel: ObservableObject {
         } catch {
             errorMessage = "Failed to rename item: \(error.localizedDescription)"
         }
+    }
+
+    func startRenaming(_ item: FileSystemItem) {
+        renamingItem = item.id
+        renameText = item.name
+    }
+
+    func commitRename() {
+        guard let itemId = renamingItem,
+              let item = items.first(where: { $0.id == itemId }),
+              !renameText.isEmpty,
+              renameText != item.name else {
+            cancelRename()
+            return
+        }
+
+        renameItem(item, to: renameText)
+        cancelRename()
+    }
+
+    func cancelRename() {
+        renamingItem = nil
+        renameText = ""
     }
 
     func deleteSelectedItems() {
