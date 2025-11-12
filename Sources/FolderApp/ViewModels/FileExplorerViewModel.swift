@@ -17,7 +17,8 @@ class FileExplorerViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var viewMode: ViewMode = .default
-    @Published var selectedItems: Set<UUID> = []
+    @Published var selectedItemID: UUID? // Single selection for performance
+    @Published var selectedItems: Set<UUID> = [] // Multi-selection support
     @Published var lastSelectedItem: UUID? // Track last selected item for range selection
     @Published var folderSizes: [URL: Int64] = [:] // Cache folder sizes
     @Published var renamingItem: UUID? // Track which item is being renamed
@@ -206,20 +207,41 @@ class FileExplorerViewModel: ObservableObject {
     // MARK: - Item Selection
 
     func toggleSelection(for item: FileSystemItem) {
-        if selectedItems.contains(item.id) {
-            selectedItems.remove(item.id)
-        } else {
-            selectedItems.insert(item.id)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+
+        withTransaction(transaction) {
+            if selectedItems.contains(item.id) {
+                selectedItems.remove(item.id)
+                if selectedItemID == item.id {
+                    selectedItemID = nil
+                }
+            } else {
+                selectedItems.insert(item.id)
+                selectedItemID = item.id
+            }
+            lastSelectedItem = item.id
         }
-        lastSelectedItem = item.id
     }
 
     func selectAll() {
-        selectedItems = Set(items.map { $0.id })
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+
+        withTransaction(transaction) {
+            selectedItems = Set(items.map { $0.id })
+            selectedItemID = items.first?.id
+        }
     }
 
     func clearSelection() {
-        selectedItems.removeAll()
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+
+        withTransaction(transaction) {
+            selectedItems.removeAll()
+            selectedItemID = nil
+        }
     }
 
     func isSelected(_ item: FileSystemItem) -> Bool {
@@ -232,11 +254,17 @@ class FileExplorerViewModel: ObservableObject {
             return
         }
 
-        let range = startIndex <= endIndex ? startIndex...endIndex : endIndex...startIndex
-        for index in range {
-            selectedItems.insert(items[index].id)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+
+        withTransaction(transaction) {
+            let range = startIndex <= endIndex ? startIndex...endIndex : endIndex...startIndex
+            for index in range {
+                selectedItems.insert(items[index].id)
+            }
+            selectedItemID = endItem.id
+            lastSelectedItem = endItem.id
         }
-        lastSelectedItem = endItem.id
     }
 
     // MARK: - Item Actions

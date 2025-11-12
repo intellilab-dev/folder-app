@@ -57,13 +57,15 @@ struct FileGridView: View {
                 }
                 .padding()
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
-                .background(Color.white.opacity(0.001))
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    // Dismiss rename mode when clicking empty space
-                    renamingFocusedID = nil
-                    viewModel.commitRename()
-                }
+                .background(
+                    Color.white.opacity(0.001)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            // Dismiss rename mode when clicking empty space
+                            renamingFocusedID = nil
+                            viewModel.commitRename()
+                        }
+                )
                 .contextMenu {
                     Button("New Folder") {
                         viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
@@ -104,6 +106,9 @@ struct FileGridView: View {
                 }
                 .disabled(!clipboardManager.hasClipboardContent())
             }
+        }
+        .onDeleteCommand {
+            viewModel.deleteSelectedItems()
         }
     }
 
@@ -250,6 +255,7 @@ struct FileGridItemWithRename: View {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(Color.folderAccent, lineWidth: isSelected ? 2 : 0)
             )
+            .transaction { $0.animation = nil }
         } else {
             // Normal display mode
             FileGridItem(item: item, isSelected: isSelected, clipboardManager: clipboardManager, isDimmed: isDimmed)
@@ -350,6 +356,7 @@ struct FileGridItem: View {
                 .stroke(isSelected ? Color.folderAccent : Color.clear, lineWidth: 2)
         )
         .opacity(opacity)
+        .transaction { $0.animation = nil }
         .task {
             // Load thumbnail for images and PDFs
             if thumbnailService.supportsThumbnail(for: item.path.path) {

@@ -49,12 +49,15 @@ struct FileListView: View {
                 }
             }
             .listStyle(.plain)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // Dismiss rename mode when clicking empty space
-                renamingFocusedID = nil
-                viewModel.commitRename()
-            }
+            .background(
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        // Dismiss rename mode when clicking empty space
+                        renamingFocusedID = nil
+                        viewModel.commitRename()
+                    }
+            )
             .contextMenu {
                 Button("New Folder") {
                     viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
@@ -74,6 +77,9 @@ struct FileListView: View {
                 }
                 .disabled(!clipboardManager.hasClipboardContent())
             }
+        }
+        .onDeleteCommand {
+            viewModel.deleteSelectedItems()
         }
     }
 
@@ -219,6 +225,7 @@ struct FileListRowWithRename: View {
             .padding(.horizontal, 8)
             .background(Color.folderAccent.opacity(0.1))
             .cornerRadius(4)
+            .transaction { $0.animation = nil }
         } else {
             // Normal display mode
             FileListRow(
@@ -352,6 +359,7 @@ struct FileListRow: View {
         .background(isSelected ? Color.folderAccent.opacity(0.1) : Color.clear)
         .cornerRadius(4)
         .opacity(opacity)
+        .transaction { $0.animation = nil }
         .task {
             // Load thumbnail for images and PDFs
             if thumbnailService.supportsThumbnail(for: item.path.path) {
