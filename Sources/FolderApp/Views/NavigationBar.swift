@@ -34,6 +34,7 @@ struct NavigationBar: View {
                     .font(.system(size: 16, weight: .medium))
             }
             .buttonStyle(NoButtonStyle())
+            .focusable(false)
             .help(settingsManager.settings.showSidebar ? "Hide Sidebar" : "Show Sidebar")
 
             Divider()
