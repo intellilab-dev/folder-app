@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 struct FileGridView: View {
     @ObservedObject var viewModel: FileExplorerViewModel
@@ -57,36 +58,17 @@ struct FileGridView: View {
                 }
                 .padding()
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
-                .background(
-                    Color.white.opacity(0.001)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            // Dismiss rename mode when clicking empty space
-                            renamingFocusedID = nil
-                            viewModel.commitRename()
-                        }
-                )
-                .contextMenu {
-                    Button("New Folder") {
-                        viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
-                    }
-
-                    Divider()
-
-                    Button("Paste") {
-                        Task {
-                            do {
-                                _ = try await clipboardManager.paste(to: viewModel.currentPath)
-                                viewModel.refresh()
-                            } catch {
-                                print("Paste failed: \(error)")
-                            }
-                        }
-                    }
-                    .disabled(!clipboardManager.hasClipboardContent())
-                }
             }
-            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                Color.white.opacity(0.001)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        // Dismiss rename mode when clicking empty space
+                        renamingFocusedID = nil
+                        viewModel.commitRename()
+                    }
+            )
             .contextMenu {
                 Button("New Folder") {
                     viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
@@ -381,6 +363,63 @@ struct FileContextMenu: View {
             viewModel.openItem(item)
         }
 
+        // Only show "Open With" for files (not folders)
+        if item.type == .file {
+            Menu("Open With") {
+                if let contentType = try? item.path.resourceValues(forKeys: [.contentTypeKey]).contentType {
+                    let apps = NSWorkspace.shared.urlsForApplications(toOpen: contentType)
+                    let defaultAppURL = NSWorkspace.shared.urlForApplication(toOpen: contentType)
+
+                    ForEach(Array(apps.enumerated()), id: \.offset) { index, appURL in
+                        Button(action: {
+                            openWith(appURL: appURL)
+                        }) {
+                            HStack {
+                                // App icon
+                                let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+                                Image(nsImage: icon)
+                                    .resizable()
+                                    .frame(width: 16, height: 16)
+
+                                // App name
+                                let appName = FileManager.default.displayName(atPath: appURL.path)
+                                    .replacingOccurrences(of: ".app", with: "")
+                                Text(appName)
+
+                                // Mark default app
+                                if appURL == defaultAppURL {
+                                    Text("(default)")
+                                        .foregroundColor(.secondary)
+                                        .font(.system(size: 11))
+                                }
+                            }
+                        }
+                    }
+
+                    if !apps.isEmpty {
+                        Divider()
+                    }
+
+                    // "Other..." option to choose from file picker
+                    Button("Other...") {
+                        let panel = NSOpenPanel()
+                        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+                        panel.allowedContentTypes = [.application]
+                        panel.allowsMultipleSelection = false
+                        panel.canChooseDirectories = false
+
+                        if panel.runModal() == .OK, let appURL = panel.url {
+                            openWith(appURL: appURL)
+                        }
+                    }
+                }
+            }
+
+            Button("Always Open With...") {
+                showAlwaysOpenWith()
+            }
+        }
+
         Divider()
 
         Button("Copy") {
@@ -448,6 +487,33 @@ struct FileContextMenu: View {
             viewModel.refresh()
         } catch {
             print("Failed to move to trash: \(error.localizedDescription)")
+        }
+    }
+
+    private func openWith(appURL: URL) {
+        let configuration = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.open([item.path], withApplicationAt: appURL, configuration: configuration) { app, error in
+            if let error = error {
+                print("Failed to open with app: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func showAlwaysOpenWith() {
+        // Open Finder's Get Info panel where user can change default app
+        let script = """
+            tell application "Finder"
+                activate
+                open information window of (POSIX file "\(item.path.path)" as alias)
+            end tell
+            """
+
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+            if let error = error {
+                print("AppleScript error: \(error)")
+            }
         }
     }
 

@@ -9,11 +9,15 @@ import SwiftUI
 import AppKit
 
 struct ContentView: View {
-    @StateObject private var viewModel = FileExplorerViewModel()
+    @StateObject private var viewModel: FileExplorerViewModel
     @StateObject private var searchViewModel = SearchViewModel()
     @StateObject private var clipboardManager = ClipboardManager.shared
     @StateObject private var sidebarManager = SidebarManager.shared
     @EnvironmentObject var settingsManager: SettingsManager
+
+    init(initialPath: URL? = nil) {
+        _viewModel = StateObject(wrappedValue: FileExplorerViewModel(initialPath: initialPath))
+    }
 
     var body: some View {
         HStack(spacing: 0) {

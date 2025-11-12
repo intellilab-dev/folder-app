@@ -159,15 +159,17 @@ class ClipboardManager: ObservableObject {
         let filename = url.deletingPathExtension().lastPathComponent
         let ext = url.pathExtension
 
-        var counter = 1
+        var counter = 2
         var newURL = url
 
         while fileSystemService.pathExists(newURL) {
             let newFilename: String
             if ext.isEmpty {
-                newFilename = "\(filename) copy \(counter)"
+                // No extension: append (2) to end
+                newFilename = "\(filename) (\(counter))"
             } else {
-                newFilename = "\(filename) copy \(counter).\(ext)"
+                // With extension: insert (2) before extension
+                newFilename = "\(filename) (\(counter)).\(ext)"
             }
             newURL = directory.appendingPathComponent(newFilename)
             counter += 1
