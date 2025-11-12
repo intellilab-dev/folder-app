@@ -18,6 +18,7 @@ struct FileListView: View {
     @State private var newFolderName = ""
     @State private var lastClickedItem: UUID?
     @State private var lastClickTime: Date?
+    @FocusState private var renamingFocusedID: UUID?
 
     private let clickPauseInterval: TimeInterval = 0.5
 
@@ -34,7 +35,8 @@ struct FileListView: View {
                     fileExplorerViewModel: viewModel,
                     isDimmed: showDimmed,
                     onSingleClick: { handleSingleClick(item) },
-                    onDoubleClick: { handleDoubleClick(item) }
+                    onDoubleClick: { handleDoubleClick(item) },
+                    renamingFocusedID: $renamingFocusedID
                 )
                 .onDrag {
                     NSItemProvider(object: item.path as NSURL)
@@ -48,9 +50,14 @@ struct FileListView: View {
             }
             .listStyle(.plain)
             .contentShape(Rectangle())
+            .onTapGesture {
+                // Dismiss rename mode when clicking empty space
+                renamingFocusedID = nil
+                viewModel.commitRename()
+            }
             .contextMenu {
                 Button("New Folder") {
-                    showNewFolderPrompt()
+                    viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
                 }
 
                 Divider()
@@ -82,9 +89,16 @@ struct FileListView: View {
            viewModel.isSelected(item) {
             // Second click on same item after pause - enter rename mode
             viewModel.startRenaming(item)
+            renamingFocusedID = item.id
             lastClickedItem = nil
             lastClickTime = nil
             return
+        }
+
+        // Dismiss any active rename mode when clicking a different item
+        if viewModel.renamingItem != nil && viewModel.renamingItem != item.id {
+            renamingFocusedID = nil
+            viewModel.commitRename()
         }
 
         // Handle selection
@@ -155,27 +169,6 @@ struct FileListView: View {
         return true
     }
 
-    private func showNewFolderPrompt() {
-        let alert = NSAlert()
-        alert.messageText = "New Folder"
-        alert.informativeText = "Enter a name for the new folder:"
-        alert.alertStyle = .informational
-
-        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
-        textField.stringValue = "Untitled Folder"
-        alert.accessoryView = textField
-
-        alert.addButton(withTitle: "Create")
-        alert.addButton(withTitle: "Cancel")
-
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            let folderName = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !folderName.isEmpty {
-                viewModel.createNewFolder(named: folderName, autoRename: true)
-            }
-        }
-    }
 }
 
 // MARK: - File List Row with Rename Support
@@ -189,6 +182,7 @@ struct FileListRowWithRename: View {
     let isDimmed: Bool
     let onSingleClick: () -> Void
     let onDoubleClick: () -> Void
+    @FocusState.Binding var renamingFocusedID: UUID?
     @StateObject private var iconService = IconService.shared
     @StateObject private var sidebarManager = SidebarManager.shared
 
@@ -210,8 +204,13 @@ struct FileListRowWithRename: View {
                 .font(.system(size: 13))
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(4)
+                .focused($renamingFocusedID, equals: item.id)
                 .onExitCommand {
                     fileExplorerViewModel.cancelRename()
+                    renamingFocusedID = nil
+                }
+                .onAppear {
+                    renamingFocusedID = item.id
                 }
 
                 Spacer()
