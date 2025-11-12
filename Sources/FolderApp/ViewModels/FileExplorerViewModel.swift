@@ -295,6 +295,7 @@ class FileExplorerViewModel: ObservableObject {
         if item.type == .folder {
             if openInNewWindow {
                 // Open in new window
+                print("Opening folder in new window: \(item.path.path)")
                 openNewWindow(path: item.path)
             } else {
                 // Navigate in current window (default behavior)
@@ -550,6 +551,34 @@ class FileExplorerViewModel: ObservableObject {
 
     func deleteSelectedItems() {
         let selectedItemsList = items.filter { selectedItems.contains($0.id) }
+
+        guard !selectedItemsList.isEmpty else { return }
+
+        // Show confirmation dialog
+        let alert = NSAlert()
+        alert.messageText = "Move to Trash"
+
+        let itemCount = selectedItemsList.count
+        if itemCount == 1 {
+            alert.informativeText = "Are you sure you want to move \"\(selectedItemsList[0].name)\" to the trash?"
+        } else {
+            alert.informativeText = "Are you sure you want to move \(itemCount) items to the trash?"
+        }
+
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Yes")
+        alert.addButton(withTitle: "No")
+
+        // Set default button to "No" for safety
+        alert.buttons[1].keyEquivalent = "\r"  // Enter key confirms "No"
+        alert.buttons[0].keyEquivalent = ""     // Remove default from "Yes"
+
+        let response = alert.runModal()
+
+        // Only delete if user clicked "Yes" (first button)
+        guard response == .alertFirstButtonReturn else {
+            return
+        }
 
         for item in selectedItemsList {
             do {

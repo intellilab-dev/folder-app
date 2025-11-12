@@ -152,9 +152,9 @@ struct NavigationBar: View {
             Divider()
                 .frame(height: 20)
 
-            // View mode toggle
+            // View mode toggle (shows target state, not current state)
             Button(action: { viewModel.toggleViewMode() }) {
-                Image(systemName: viewModel.viewMode.mode == .iconGrid ? "square.grid.2x2" : "list.bullet")
+                Image(systemName: viewModel.viewMode.mode == .iconGrid ? "list.bullet" : "square.grid.2x2")
                     .font(.system(size: 16))
             }
             .buttonStyle(.borderless)

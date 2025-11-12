@@ -24,6 +24,8 @@ class WindowManager: ObservableObject {
     }
 
     func addWindow(_ window: NSWindow) {
+        // Prevent window from being released when closed
+        window.releasedWhenClosed = false
         windows.append(window)
     }
 

@@ -50,6 +50,8 @@ struct FileListView: View {
                 }
             }
             .listStyle(.plain)
+            .focusable(true)
+            .scrollContentBackground(.hidden)  // Hide default List background
             .background(
                 Color.clear
                     .contentShape(Rectangle())
@@ -381,6 +383,7 @@ struct FileListRow: View {
         .padding(.horizontal, 8)
         .background(isSelected ? Color.folderAccent.opacity(0.1) : Color.clear)
         .cornerRadius(4)
+        .contentShape(Rectangle())  // Make entire row clickable
         .opacity(opacity)
         .transaction { $0.animation = nil }
         .task {

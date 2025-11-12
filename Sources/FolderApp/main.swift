@@ -43,6 +43,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window?.backgroundColor = NSColor.folderSidebar
         window?.makeKeyAndOrderFront(nil)
         window?.setFrameAutosaveName("MainWindow")
+
+        // Add to WindowManager for proper lifecycle management
+        if let window = window {
+            WindowManager.shared.addWindow(window)
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
