@@ -42,12 +42,20 @@ struct NavigationBar: View {
             .buttonStyle(.borderless)
             .disabled(!viewModel.canGoForward)
 
+            // Sidebar toggle button
+            Button(action: { settingsManager.settings.showSidebar.toggle() }) {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 16, weight: .medium))
+            }
+            .buttonStyle(.borderless)
+            .help("Toggle sidebar")
+
             // Up/Parent button
             Button(action: { viewModel.navigateToParent() }) {
                 Image(systemName: "chevron.up")
                     .font(.system(size: 16, weight: .medium))
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(NoButtonStyle())
 
             Divider()
                 .frame(height: 20)
