@@ -164,7 +164,13 @@ Open-source and ready for contributions:
 
 ## License
 
-MIT License - Do whatever you want with it.
+**Open Source, Non-Commercial**
+
+Free to use, modify, and distribute for personal, educational, or research purposes.
+
+**You may NOT sell this software or charge for it.** See [LICENSE](LICENSE) for full details.
+
+For commercial licensing, please contact the maintainers.
 
 ---
 
