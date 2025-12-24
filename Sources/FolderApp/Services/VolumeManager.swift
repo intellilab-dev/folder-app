@@ -38,7 +38,14 @@ class VolumeManager: ObservableObject {
 
     private func loadMountedVolumes() {
         guard let urls = FileManager.default.mountedVolumeURLs(
-            includingResourceValuesForKeys: [.volumeNameKey, .volumeIsRemovableKey, .volumeIsEjectableKey],
+            includingResourceValuesForKeys: [
+                .volumeNameKey,
+                .volumeIsRemovableKey,
+                .volumeIsEjectableKey,
+                .volumeIsInternalKey,
+                .volumeIsLocalKey,
+                .volumeIsRootFileSystemKey
+            ],
             options: [.skipHiddenVolumes]
         ) else {
             mountedVolumes = []
@@ -53,14 +60,31 @@ class VolumeManager: ObservableObject {
                     .volumeNameKey,
                     .volumeIsRemovableKey,
                     .volumeIsEjectableKey,
-                    .volumeLocalizedNameKey
+                    .volumeLocalizedNameKey,
+                    .volumeIsInternalKey,
+                    .volumeIsLocalKey,
+                    .volumeIsRootFileSystemKey
                 ])
 
-                // Skip system volumes (only show removable/external)
+                // Skip the root filesystem and non-local volumes
+                let isRootFS = resourceValues.volumeIsRootFileSystem ?? false
+                let isLocal = resourceValues.volumeIsLocal ?? true
+
+                // Skip root filesystem
+                if isRootFS || !isLocal {
+                    continue
+                }
+
+                // Include volumes that are:
+                // 1. Removable (USB drives, SD cards)
+                // 2. Ejectable (external drives including SSDs)
+                // 3. External (not internal) and local
                 let isRemovable = resourceValues.volumeIsRemovable ?? false
                 let isEjectable = resourceValues.volumeIsEjectable ?? false
+                let isInternal = resourceValues.volumeIsInternal ?? true
 
-                if isRemovable || isEjectable {
+                // Show external drives: removable, ejectable, or explicitly external
+                if isRemovable || isEjectable || !isInternal {
                     let volumeName = resourceValues.volumeLocalizedName ?? resourceValues.volumeName ?? url.lastPathComponent
 
                     volumes.append(VolumeInfo(
