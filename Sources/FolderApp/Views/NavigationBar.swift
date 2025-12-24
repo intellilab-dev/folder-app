@@ -23,15 +23,28 @@ struct NavigationBar: View {
     @State private var isEditingPath = false
     @FocusState private var isPathFieldFocused: Bool
     @FocusState private var isSearchFieldFocused: Bool
+    @FocusState private var navigationButtonFocused: Bool?
+    @Namespace private var focusNamespace
 
     var body: some View {
         HStack(spacing: 12) {
+            // Sidebar toggle button
+            Button(action: { settingsManager.settings.showSidebar.toggle() }) {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(.borderless)
+            .focusable(false)
+            .help("Toggle sidebar")
+
             // Back button
             Button(action: { viewModel.navigateBack() }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 16, weight: .medium))
             }
             .buttonStyle(.borderless)
+            .focusable(false)
             .disabled(!viewModel.canGoBack)
 
             // Forward button
@@ -40,15 +53,8 @@ struct NavigationBar: View {
                     .font(.system(size: 16, weight: .medium))
             }
             .buttonStyle(.borderless)
+            .focusable(false)
             .disabled(!viewModel.canGoForward)
-
-            // Sidebar toggle button
-            Button(action: { settingsManager.settings.showSidebar.toggle() }) {
-                Image(systemName: "sidebar.left")
-                    .font(.system(size: 16, weight: .medium))
-            }
-            .buttonStyle(.borderless)
-            .help("Toggle sidebar")
 
             // Up/Parent button
             Button(action: { viewModel.navigateToParent() }) {
@@ -56,6 +62,7 @@ struct NavigationBar: View {
                     .font(.system(size: 16, weight: .medium))
             }
             .buttonStyle(NoButtonStyle())
+            .focusable(false)
 
             Divider()
                 .frame(height: 20)
@@ -169,6 +176,11 @@ struct NavigationBar: View {
             }
             .buttonStyle(.borderless)
             .help("Refresh")
+        }
+        .focusScope(focusNamespace)
+        .onAppear {
+            // Remove focus from all navigation buttons
+            navigationButtonFocused = nil
         }
         .frame(height: 44)
         .onChange(of: viewModel.currentPath) { newPath in

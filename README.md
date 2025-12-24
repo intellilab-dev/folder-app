@@ -1,217 +1,173 @@
-# Folder - Minimalist macOS File Explorer
+# Folder - A Better Finder for macOS
 
-A fast, native macOS file browser built with Swift and SwiftUI. A modern alternative to Finder with live file updates, keyboard shortcuts, and a clean dark interface.
+**Hey MacBook enthusiast!** Tired of Finder's clunky interface? Folder is your fast, keyboard-driven file browser that actually gets out of your way.
 
-## Features
+Built with Swift and SwiftUI. Native macOS performance. Zero bloat.
 
-### Navigation
-- Double-click folders/files to open them
-- Single-click to select items
-- **Shift-click** to select a range of files
-- **Cmd-click** to select multiple individual files
-- Back/Forward navigation with history
-- Editable address bar - type paths directly
-- Up button to go to parent folder
+## Why Folder?
 
-### Views & Display
-- **Grid View**: Large file icons with thumbnails
-- **List View**: Compact view with file details
-- **Sorting**: Sort by Name, Date, Size, or Type
-- Real macOS file icons with caching
-- Live file system updates - new files appear instantly
-- Show/hide hidden files toggle
+- **Keyboard-first navigation** - Arrow keys, shortcuts, instant search
+- **Live file updates** - Watch files appear/change in real-time
+- **External drive support** - Access USB drives and SD cards from sidebar
+- **Clean, focused interface** - One window, dark mode, zero distractions
+- **Shortcuts.app integration** - Automate file operations via URL scheme
 
-### Sidebar
-- **Favorites**: Pin folders for quick access
-- **Recent Locations**: Track recently visited folders
-- **Color Tags**: Organize folders with visual tags
-- Drag to reorder items
-- Toggle sections on/off in settings
+## Core Features
 
-### File Operations
-- **Right-click context menu**: Create new folders, rename, delete
-- Copy/Cut/Paste with system clipboard
-- Drag and drop support
-- Move to trash
-- Add folders to favorites
+### 🚀 **Lightning-Fast Navigation**
+- **Double-click** to open folders/files
+- **Arrow keys** to move between items
+- **Back/Forward** navigation with full history
+- **Type paths** directly in the address bar
+- **Search everywhere** - Cmd+F searches recursively, with drag & drop support
 
-### Keyboard Shortcuts
-- **Cmd+Shift+N**: Create new folder
-- **Cmd+C/X/V**: Copy/Cut/Paste
-- **Cmd+F**: Search files
-- **Cmd+,**: Open settings
-- **Cmd+Sidebar**: Toggle sidebar
-- **Arrow Keys**: Navigate between items
-- **Enter**: Open selected item
-- **Delete**: Move to trash
-- **Escape**: Clear selection
-- **Ctrl+Left**: Go to parent folder
-- **Ctrl+Right**: Open selected folder
+### 📁 **External Drive Support** (NEW)
+- **USB drives** appear automatically in sidebar
+- **SD cards** and external volumes detected on mount
+- **Eject safely** with one click
+- No more digging through /Volumes
+
+### 👀 **Dual View Modes**
+- **Grid View** - Large icons with file thumbnails
+- **List View** - Compact rows with metadata
+- **Sort by** Name, Date, Size, or Type
+- Real macOS icons with smart caching
+
+### ⭐ **Smart Sidebar**
+- **Favorites** - Pin your most-used folders
+- **Recent Locations** - Quick access to browsing history
+- **External Devices** - USB drives, SD cards at your fingertips
+- **Color Tags** - Organize with visual labels
+- Drag to reorder everything
+
+### ⚡ **File Operations**
+- **Right-click** for context menu (new folder, rename, delete)
+- **Copy/Cut/Paste** with system clipboard integration
+- **Drag and drop** between Folder, Finder, and other apps
+- **Move to trash** safely (Cmd+Delete)
+- **Quick Look** preview with spacebar
+
+### ⌨️ **Keyboard Shortcuts**
+```
+Cmd+F         → Search files (with drag & drop)
+Cmd+Shift+N   → Create new folder
+Cmd+C/X/V     → Copy/Cut/Paste
+Cmd+,         → Settings
+Cmd+[/]       → Navigate Back/Forward
+Enter         → Open selected item
+Delete        → Move to trash
+Escape        → Clear selection
+Space         → Quick Look preview
+```
 
 ## Installation
 
-### Quick Install (Recommended)
-
-1. **Download or clone** this repository
-2. **Build the app**:
-   ```bash
-   ./build.sh
-   ```
-3. **Install system-wide**:
-   ```bash
-   cp -R Folder.app /Applications/
-   ```
-4. **Launch** from Applications folder or Spotlight
-
-### Install to Terminal (Optional)
-
-To launch Folder from the command line:
+### Quick Install (2 minutes)
 
 ```bash
-./install-to-path.sh
-```
+# 1. Clone the repo
+git clone https://github.com/intellilab-dev/folder-app.git
+cd folder-app
 
-Now you can run `folder` from any terminal to launch the app.
+# 2. Build the app
+./build.sh
 
-### Manual Build
-
-If you prefer to build manually:
-
-```bash
-# Build with Swift Package Manager
-swift build -c release
-
-# Create app bundle
-mkdir -p Folder.app/Contents/MacOS
-mkdir -p Folder.app/Contents/Resources
-cp .build/release/Folder Folder.app/Contents/MacOS/
-cp Resources/AppIcon.icns Folder.app/Contents/Resources/
-
-# Code sign
-codesign --force --sign - --entitlements Folder.entitlements --deep Folder.app
-
-# Install
+# 3. Install to Applications
 cp -R Folder.app /Applications/
+
+# 4. Launch from Spotlight or Dock
+open /Applications/Folder.app
 ```
 
-## Usage
+### Add to Terminal (Optional)
 
-### Getting Started
+Want to launch Folder from anywhere in your terminal?
 
-1. **Launch** Folder from Applications
-2. **Browse** your files by clicking folders
-3. **Select files** with single-click, shift-click for ranges, cmd-click for multiple
-4. **Right-click** anywhere to create a new folder
-5. **Drag folders** to favorites in the sidebar
-6. **Sort** files using the toolbar buttons
+```bash
+./add-to-path.sh
+```
 
-### Settings
+Now type `folder` in any terminal window to launch the app.
 
-Press **Cmd+,** to open settings:
-- Default view mode (Grid/List)
-- Icon size for grid view
-- Show/hide hidden files
-- Toggle sidebar sections (Favorites, Recent, Color Tags)
-- Theme selection (Light/Dark/System)
+### Shortcuts.app Integration
 
-### URL Scheme
-
-Folder supports the `folder://` URL scheme:
+Folder supports URL schemes for automation:
 
 ```bash
 # Open a specific folder
-open "folder://open?path=/Users/username/Documents"
+open "folder://open?path=/Users/$(whoami)/Documents"
 ```
+
+Perfect for Shortcuts.app workflows!
 
 ## Requirements
 
-- macOS 13.0 or later
-- Swift 6.2.1 or later (for building)
+- **macOS 13.0+** (Ventura or later)
+- **Swift 5.9+** (for building from source)
 
-## Building from Source
+## What's Different from Finder?
 
-### Prerequisites
+| Feature | Finder | Folder |
+|---------|--------|--------|
+| Keyboard navigation | Limited | Full arrow key support |
+| Search results | No drag & drop | Drag & drop enabled |
+| External drives | Hidden in sidebar | Auto-detected, one-click eject |
+| Window management | Multiple windows | Single focused window |
+| Performance | Slow with large folders | Cached icons, instant updates |
+| Customization | Limited | Grid size, themes, hide/show sections |
 
-- Xcode Command Line Tools: `xcode-select --install`
-- Swift Package Manager (included with Xcode CLT)
+## Settings
 
-### Build Commands
+Press **Cmd+,** to customize:
+- Default view mode (Grid or List)
+- Icon size (40-200px)
+- Show/hide hidden files
+- Toggle sidebar sections
+- Theme (Light/Dark/System)
 
+## Troubleshooting
+
+**App won't open?** Remove quarantine:
 ```bash
-# Build release version
-./build.sh
+xattr -cr /Applications/Folder.app
+```
 
-# Run the app
-./run.sh
-
-# Clean build artifacts
-rm -rf .build Folder.app
-
-# Rebuild from scratch
+**Build errors?** Clean and rebuild:
+```bash
 rm -rf .build Folder.app && ./build.sh
 ```
+
+**Permissions prompts?** Grant file access on first launch. Folder uses security-scoped bookmarks to remember your choices.
 
 ## Project Structure
 
 ```
 FolderApp/
-├── Package.swift              # Swift Package Manager manifest
-├── build.sh                   # Build script
-├── Folder.entitlements        # App permissions
 ├── Sources/FolderApp/
-│   ├── main.swift            # App entry point
-│   ├── Models/               # Data models
-│   ├── ViewModels/           # Business logic
-│   ├── Views/                # SwiftUI views
-│   └── Services/             # File system & utilities
-└── Resources/                # App icon and assets
-```
-
-## Troubleshooting
-
-### Permission Prompts
-
-On first launch, macOS may ask for file access permissions. Grant these to allow Folder to browse your files. The app uses security-scoped bookmarks to remember permissions.
-
-### App Won't Open
-
-If macOS blocks the app with "unidentified developer" warning:
-
-```bash
-# Remove quarantine attribute
-xattr -cr /Applications/Folder.app
-
-# Or add to allowed apps
-spctl --add /Applications/Folder.app
-```
-
-### Build Errors
-
-If you encounter build errors:
-
-```bash
-# Clean and rebuild
-rm -rf .build Folder.app
-./build.sh
+│   ├── main.swift           # App entry point
+│   ├── Models/              # Data structures
+│   ├── ViewModels/          # Business logic
+│   ├── Views/               # SwiftUI interface
+│   └── Services/            # File system, icons, clipboard
+├── Package.swift            # Swift Package Manager config
+├── build.sh                 # Build script
+└── Folder.entitlements      # Permissions
 ```
 
 ## Contributing
 
-This is an open-source project. Feel free to:
+Open-source and ready for contributions:
 - Report bugs via GitHub Issues
 - Submit pull requests
-- Suggest new features
-- Improve documentation
+- Request features
+- Improve docs
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Credits
-
-Built with Swift and SwiftUI
-Designed for macOS 13.0+
+MIT License - Do whatever you want with it.
 
 ---
 
-**Repository**: https://github.com/intellilab-dev/folder-app
+**Built for MacBook enthusiasts who value speed, simplicity, and keyboard shortcuts.**
+
+Repository: https://github.com/intellilab-dev/folder-app

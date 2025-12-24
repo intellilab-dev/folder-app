@@ -12,6 +12,7 @@ struct SidebarView: View {
     @ObservedObject var sidebarManager: SidebarManager
     @ObservedObject var fileExplorerViewModel: FileExplorerViewModel
     @EnvironmentObject var settingsManager: SettingsManager
+    @StateObject private var volumeManager = VolumeManager.shared
     @State private var showAllRecent = false
 
     var body: some View {
@@ -77,6 +78,30 @@ struct SidebarView: View {
                 Divider()
                     .padding(.vertical, 8)
             }
+
+            // Devices Section
+            SidebarSection(title: "Devices") {
+                ForEach(volumeManager.mountedVolumes) { volume in
+                    SidebarDeviceItem(
+                        volume: volume,
+                        isSelected: fileExplorerViewModel.currentPath == volume.url,
+                        volumeManager: volumeManager
+                    ) {
+                        fileExplorerViewModel.navigate(to: volume.url)
+                    }
+                }
+
+                if volumeManager.mountedVolumes.isEmpty {
+                    Text("No external drives")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                }
+            }
+
+            Divider()
+                .padding(.vertical, 8)
 
             // Recent Locations Section
             if settingsManager.settings.showRecentSection {
@@ -528,5 +553,50 @@ struct RecentDropDelegate: DropDelegate {
                 sidebarManager.reorderRecents(from: fromIndex, to: toIndex)
             }
         }
+    }
+}
+
+// MARK: - Device Item
+
+struct SidebarDeviceItem: View {
+    let volume: VolumeInfo
+    let isSelected: Bool
+    @ObservedObject var volumeManager: VolumeManager
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: volume.isRemovable ? "externaldrive.fill" : "internaldrive.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(isSelected ? .accentColor : .secondary)
+                    .frame(width: 16)
+
+                Text(volume.name)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? .primary : .primary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if volume.isEjectable {
+                    Button(action: {
+                        volumeManager.ejectVolume(volume)
+                    }) {
+                        Image(systemName: "eject")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Eject \(volume.name)")
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
     }
 }

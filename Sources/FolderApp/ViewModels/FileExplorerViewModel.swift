@@ -293,44 +293,12 @@ class FileExplorerViewModel: ObservableObject {
 
     func openItem(_ item: FileSystemItem, openInNewWindow: Bool = false) {
         if item.type == .folder {
-            if openInNewWindow {
-                // Open in new window
-                print("Opening folder in new window: \(item.path.path)")
-                openNewWindow(path: item.path)
-            } else {
-                // Navigate in current window (default behavior)
-                navigate(to: item.path)
-            }
+            // Always navigate in current window
+            navigate(to: item.path)
         } else {
             // Open file with default application
             NSWorkspace.shared.open(item.path)
         }
-    }
-
-    private func openNewWindow(path: URL) {
-        // Validate that path is actually a directory
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else {
-            print("Error: Cannot open window - path is not a directory: \(path.path)")
-            errorMessage = "Cannot open new window: Not a folder"
-            return
-        }
-
-        let contentView = ContentView(initialPath: path)
-            .environmentObject(SettingsManager.shared)
-
-        let windowController = SwiftUIWindowController(
-            rootView: contentView,
-            title: "Folder - \(path.lastPathComponent)",
-            size: NSSize(width: 1000, height: 700)
-        )
-
-        windowController.window?.setFrameAutosaveName("BrowserWindow-\(UUID().uuidString)")
-        windowController.showWindow(nil)
-
-        // Keep a reference to prevent deallocation
-        WindowManager.shared.addWindowController(windowController)
     }
 
     // MARK: - View Mode

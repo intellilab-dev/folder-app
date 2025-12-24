@@ -387,14 +387,6 @@ struct FileContextMenu: View {
             viewModel.openItem(item)
         }
 
-        // Only show "Open in New Window" for folders
-        if item.type == .folder {
-            Button("Open in New Window") {
-                viewModel.openItem(item, openInNewWindow: true)
-            }
-            .keyboardShortcut("t", modifiers: .command)
-        }
-
         // Only show "Open With" for files (not folders)
         if item.type == .file {
             Menu("Open With") {

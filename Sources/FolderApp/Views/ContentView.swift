@@ -34,10 +34,26 @@ struct ContentView: View {
         .preferredColorScheme(colorScheme)
         .onAppear {
             setupKeyboardHandling()
+
+            // Listen for URL scheme navigation
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("NavigateToPath"),
+                object: nil,
+                queue: .main
+            ) { notification in
+                if let url = notification.object as? URL {
+                    viewModel.navigate(to: url)
+                }
+            }
         }
         .onChange(of: viewModel.currentPath) { newPath in
             // Add to recent locations when navigating
             sidebarManager.addRecentLocation(newPath)
+
+            // Deactivate search when navigating to a new path
+            if searchViewModel.isSearchActive {
+                searchViewModel.deactivateSearch()
+            }
         }
     }
 
@@ -184,9 +200,9 @@ struct ContentView: View {
                 return false
 
             case "t":
-                // Cmd+T: Open selected folder in new window (only when not in text field)
+                // Cmd+T: Navigate into selected folder (only when not in text field)
                 if !isTextField {
-                    openSelectedFolderInNewWindow()
+                    navigateIntoSelectedFolder()
                     return true
                 }
                 return false
@@ -355,13 +371,13 @@ struct ContentView: View {
         }
     }
 
-    private func openSelectedFolderInNewWindow() {
+    private func navigateIntoSelectedFolder() {
         guard let firstSelected = viewModel.selectedItems.first,
               let item = viewModel.items.first(where: { $0.id == firstSelected }),
               item.type == .folder else {
             return
         }
-        viewModel.openItem(item, openInNewWindow: true)
+        viewModel.navigate(to: item.path)
     }
 
     // MARK: - File Operations
@@ -419,6 +435,9 @@ struct SearchResultsGridView: View {
             LazyVGrid(columns: columns, spacing: spacing) {
                 ForEach(searchViewModel.searchResults) { item in
                     FileGridItem(item: item, isSelected: false, clipboardManager: clipboardManager, isDimmed: false)
+                        .onDrag {
+                            NSItemProvider(object: item.path as NSURL)
+                        }
                         .onTapGesture(count: 2) {
                             fileExplorerViewModel.openItem(item)
                             searchViewModel.deactivateSearch()
@@ -438,6 +457,9 @@ struct SearchResultsListView: View {
     var body: some View {
         List(searchViewModel.searchResults) { item in
             FileListRow(item: item, isSelected: false, clipboardManager: clipboardManager, fileExplorerViewModel: fileExplorerViewModel, isDimmed: false)
+                .onDrag {
+                    NSItemProvider(object: item.path as NSURL)
+                }
                 .onTapGesture(count: 2) {
                     fileExplorerViewModel.openItem(item)
                     searchViewModel.deactivateSearch()

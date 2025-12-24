@@ -42,7 +42,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return false  // Allow multiple windows to be open
+        return true  // Quit when main window closes
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            // Restore main window when clicking dock icon
+            mainWindowController?.showWindow(nil)
+            mainWindowController?.window?.makeKeyAndOrderFront(nil)
+        }
+        return true
     }
 
     @objc func handleURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent replyEvent: NSAppleEventDescriptor) {
@@ -68,22 +77,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
                 print("Opening folder from URL: \(folderPath)")
 
-                // Always open in NEW window when launched via URL scheme (Shortcuts.app)
-                let contentView = ContentView(initialPath: folderURL)
-                    .environmentObject(SettingsManager.shared)
-
-                let windowController = SwiftUIWindowController(
-                    rootView: contentView,
-                    title: "Folder - \(folderURL.lastPathComponent)",
-                    size: NSSize(width: 1000, height: 700)
-                )
-
-                windowController.window?.setFrameAutosaveName("URLWindow-\(UUID().uuidString)")
-                windowController.showWindow(nil)
-
-                WindowManager.shared.addWindowController(windowController)
-
+                // Navigate main window instead of creating new window
+                mainWindowController?.showWindow(nil)
+                mainWindowController?.window?.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
+
+                // Post notification to navigate to path
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("NavigateToPath"),
+                    object: folderURL
+                )
             }
         }
     }
