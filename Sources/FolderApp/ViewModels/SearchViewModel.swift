@@ -18,6 +18,8 @@ class SearchViewModel: ObservableObject {
 
     private var searchTask: Task<Void, Never>?
     private let fileSystemService = FileSystemService.shared
+    private let embeddingManager = EmbeddingManager.shared
+    private let embeddingSearchService = EmbeddingSearchService.shared
 
     // Debounce timer
     private var debounceTimer: Timer?
@@ -49,14 +51,71 @@ class SearchViewModel: ObservableObject {
     }
 
     private func performSearch(in folder: URL, depth: Int) async {
-        var results: [FileSystemItem] = []
+        // Check if folder is embedded and has valid credentials
+        if embeddingManager.isEmbedded(folder),
+           let index = embeddingManager.getEmbeddingIndex(for: folder),
+           let apiToken = embeddingManager.apiToken,
+           let productId = embeddingManager.productId {
 
-        // Recursive search with depth limit
-        await searchRecursively(in: folder, currentDepth: 0, maxDepth: depth, results: &results)
+            // Use hybrid search
+            let allItems = await getAllItemsRecursively(in: folder, depth: depth)
+            let results = await embeddingSearchService.hybridSearch(
+                query: searchQuery,
+                in: folder,
+                embeddingIndex: index,
+                allItems: allItems,
+                apiToken: apiToken,
+                productId: productId
+            )
+            self.searchResults = results.map { $0.item }.sorted()
+        } else {
+            // Use existing keyword search
+            var results: [FileSystemItem] = []
+            await searchRecursively(in: folder, currentDepth: 0, maxDepth: depth, results: &results)
+            self.searchResults = results.sorted()
+        }
 
-        // Update results on main thread
-        self.searchResults = results.sorted()
         self.isSearching = false
+    }
+
+    /// Get all items recursively for hybrid search
+    private func getAllItemsRecursively(in folder: URL, depth: Int) async -> [FileSystemItem] {
+        var allItems: [FileSystemItem] = []
+        await collectAllItems(in: folder, currentDepth: 0, maxDepth: depth, items: &allItems)
+        return allItems
+    }
+
+    /// Collect all items recursively
+    private func collectAllItems(in folder: URL, currentDepth: Int, maxDepth: Int, items: inout [FileSystemItem]) async {
+        // Check if task was cancelled
+        if Task.isCancelled {
+            return
+        }
+
+        // Stop if we've reached max depth
+        if currentDepth > maxDepth {
+            return
+        }
+
+        do {
+            let contents = try fileSystemService.contentsOfDirectory(at: folder, showHidden: false)
+
+            for item in contents {
+                // Check if task was cancelled
+                if Task.isCancelled {
+                    return
+                }
+
+                items.append(item)
+
+                // Recursively collect from subdirectories
+                if item.type == .folder {
+                    await collectAllItems(in: item.path, currentDepth: currentDepth + 1, maxDepth: maxDepth, items: &items)
+                }
+            }
+        } catch {
+            // Silently handle errors (permission denied, etc.)
+        }
     }
 
     private func searchRecursively(in folder: URL, currentDepth: Int, maxDepth: Int, results: inout [FileSystemItem]) async {

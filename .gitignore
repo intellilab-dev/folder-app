@@ -1,3 +1,6 @@
+# Environment variables
+.env
+
 # Swift Package Manager
 .build/
 .swiftpm/

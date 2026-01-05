@@ -12,12 +12,15 @@ struct FileListView: View {
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var searchViewModel: SearchViewModel
     @StateObject private var clipboardManager = ClipboardManager.shared
+    @StateObject private var embeddingManager = EmbeddingManager.shared
     let showDimmed: Bool
 
     @State private var showingNewFolderAlert = false
     @State private var newFolderName = ""
     @State private var lastClickedItem: UUID?
     @State private var lastClickTime: Date?
+    @State private var showEmbeddingSheet = false
+    @State private var selectedFolderForEmbedding: URL?
     @FocusState private var renamingFocusedID: UUID?
     @State private var scrollPosition: UUID?
 
@@ -46,7 +49,14 @@ struct FileListView: View {
                     handleDrop(providers: providers, destination: item)
                 }
                 .contextMenu {
-                    FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                    FileContextMenu(
+                        item: item,
+                        viewModel: viewModel,
+                        clipboardManager: clipboardManager,
+                        embeddingManager: embeddingManager,
+                        showEmbeddingSheet: $showEmbeddingSheet,
+                        selectedFolderForEmbedding: $selectedFolderForEmbedding
+                    )
                 }
             }
             .listStyle(.plain)
@@ -87,6 +97,15 @@ struct FileListView: View {
         }
         .onDeleteCommand {
             viewModel.deleteSelectedItems()
+        }
+        .sheet(isPresented: $showEmbeddingSheet) {
+            if let folder = selectedFolderForEmbedding {
+                EmbeddingProgressSheet(
+                    embeddingManager: embeddingManager,
+                    folderPath: folder,
+                    isPresented: $showEmbeddingSheet
+                )
+            }
         }
     }
 
@@ -279,6 +298,7 @@ struct FileListRow: View {
     @StateObject private var iconService = IconService.shared
     @StateObject private var sidebarManager = SidebarManager.shared
     @StateObject private var thumbnailService = ThumbnailService.shared
+    @StateObject private var embeddingManager = EmbeddingManager.shared
     @State private var thumbnail: NSImage?
 
     private var isCut: Bool {
@@ -317,6 +337,19 @@ struct FileListRow: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 20, height: 20)
+                }
+
+                // Embedding badge (for folders) - slightly smaller for list view
+                if item.type == .folder && embeddingManager.isEmbedded(item.path) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 12, height: 12)
+                        Image(systemName: "cloud.fill")
+                            .font(.system(size: 7))
+                            .foregroundColor(.blue)
+                    }
+                    .offset(x: 3, y: 3)
                 }
 
                 // Symlink badge

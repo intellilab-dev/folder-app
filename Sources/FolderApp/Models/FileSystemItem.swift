@@ -39,6 +39,13 @@ struct FileSystemItem: Identifiable, Codable, Equatable, Hashable {
         }
     }
 
+    // Check if file supports embedding (PDF or Markdown)
+    var isEmbeddable: Bool {
+        guard type == .file else { return false }
+        let ext = path.pathExtension.lowercased()
+        return ["pdf", "md", "txt", "markdown"].contains(ext)
+    }
+
     // Initialize from URL using FileManager
     init(from url: URL, fileManager: FileManager = .default) throws {
         self.id = UUID()

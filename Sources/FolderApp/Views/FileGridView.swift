@@ -13,12 +13,15 @@ struct FileGridView: View {
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var searchViewModel: SearchViewModel
     @StateObject private var clipboardManager = ClipboardManager.shared
+    @StateObject private var embeddingManager = EmbeddingManager.shared
     let showDimmed: Bool
 
     @State private var showingNewFolderAlert = false
     @State private var newFolderName = ""
     @State private var lastClickedItem: UUID?
     @State private var lastClickTime: Date?
+    @State private var showEmbeddingSheet = false
+    @State private var selectedFolderForEmbedding: URL?
     @FocusState private var renamingFocusedID: UUID?
 
     private let spacing: CGFloat = 16
@@ -65,7 +68,14 @@ struct FileGridView: View {
                                 handleDrop(providers: providers, destination: item)
                             }
                             .contextMenu {
-                                FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                                FileContextMenu(
+                                    item: item,
+                                    viewModel: viewModel,
+                                    clipboardManager: clipboardManager,
+                                    embeddingManager: embeddingManager,
+                                    showEmbeddingSheet: $showEmbeddingSheet,
+                                    selectedFolderForEmbedding: $selectedFolderForEmbedding
+                                )
                             }
                         }
                     }
@@ -96,6 +106,15 @@ struct FileGridView: View {
         }
         .onDeleteCommand {
             viewModel.deleteSelectedItems()
+        }
+        .sheet(isPresented: $showEmbeddingSheet) {
+            if let folder = selectedFolderForEmbedding {
+                EmbeddingProgressSheet(
+                    embeddingManager: embeddingManager,
+                    folderPath: folder,
+                    isPresented: $showEmbeddingSheet
+                )
+            }
         }
     }
 
@@ -283,6 +302,7 @@ struct FileGridItem: View {
     @StateObject private var iconService = IconService.shared
     @StateObject private var sidebarManager = SidebarManager.shared
     @StateObject private var thumbnailService = ThumbnailService.shared
+    @StateObject private var embeddingManager = EmbeddingManager.shared
     @State private var thumbnail: NSImage?
 
     private var isCut: Bool {
@@ -321,6 +341,19 @@ struct FileGridItem: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 64, height: 64)
+                }
+
+                // Embedding badge (for folders)
+                if item.type == .folder && embeddingManager.isEmbedded(item.path) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 22, height: 22)
+                        Image(systemName: "cloud.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.blue)
+                    }
+                    .offset(x: 10, y: 10)
                 }
 
                 // Symlink badge
@@ -378,18 +411,22 @@ struct FileContextMenu: View {
     let item: FileSystemItem
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var clipboardManager: ClipboardManager
+    @ObservedObject var embeddingManager: EmbeddingManager
+    @Binding var showEmbeddingSheet: Bool
+    @Binding var selectedFolderForEmbedding: URL?
     @StateObject private var sidebarManager = SidebarManager.shared
     @State private var showingRenameAlert = false
     @State private var newName = ""
 
     var body: some View {
-        Button("Open") {
-            viewModel.openItem(item)
-        }
+        Group {
+            Button("Open") {
+                viewModel.openItem(item)
+            }
 
-        // Only show "Open With" for files (not folders)
-        if item.type == .file {
-            Menu("Open With") {
+            // Only show "Open With" for files (not folders)
+            if item.type == .file {
+                Menu("Open With") {
                 if let contentType = try? item.path.resourceValues(forKeys: [.contentTypeKey]).contentType {
                     let apps = NSWorkspace.shared.urlsForApplications(toOpen: contentType)
                     let defaultAppURL = NSWorkspace.shared.urlForApplication(toOpen: contentType)
@@ -437,66 +474,85 @@ struct FileContextMenu: View {
                         }
                     }
                 }
-            }
+                }
 
-            Button("Always Open With...") {
-                showAlwaysOpenWith()
-            }
-        }
-
-        Divider()
-
-        Button("Copy") {
-            // Copy all selected items if item is in selection, otherwise just this item
-            let itemsToCopy = viewModel.isSelected(item) ?
-                viewModel.items.filter { viewModel.selectedItems.contains($0.id) } :
-                [item]
-            clipboardManager.copy(items: itemsToCopy)
-        }
-
-        Button("Cut") {
-            // Cut all selected items if item is in selection, otherwise just this item
-            let itemsToCut = viewModel.isSelected(item) ?
-                viewModel.items.filter { viewModel.selectedItems.contains($0.id) } :
-                [item]
-            clipboardManager.cut(items: itemsToCut)
-        }
-
-        Divider()
-
-        Button("Move to Trash") {
-            moveToTrash()
-        }
-
-        Button("Rename...") {
-            newName = item.name
-            showingRenameAlert = true
-        }
-
-        Divider()
-
-        Button("Add to Favorites") {
-            sidebarManager.addFavorite(item.path, name: item.name, icon: item.type == .folder ? "folder.fill" : "doc.fill")
-        }
-
-        Menu("Apply Color Tag") {
-            ForEach(ColorTag.TagColor.allCases, id: \.self) { color in
-                Button(action: {
-                    sidebarManager.setColorTag(for: item.path, tag: ColorTag(color: color, name: color.rawValue))
-                }) {
-                    HStack {
-                        Circle()
-                            .fill(Color(hex: color.rawValue))
-                            .frame(width: 12, height: 12)
-                        Text(colorName(for: color))
-                    }
+                Button("Always Open With...") {
+                    showAlwaysOpenWith()
                 }
             }
 
             Divider()
 
-            Button("Remove Color Tag") {
-                sidebarManager.setColorTag(for: item.path, tag: nil)
+            Button("Copy") {
+                // Copy all selected items if item is in selection, otherwise just this item
+                let itemsToCopy = viewModel.isSelected(item) ?
+                    viewModel.items.filter { viewModel.selectedItems.contains($0.id) } :
+                    [item]
+                clipboardManager.copy(items: itemsToCopy)
+            }
+
+            Button("Cut") {
+                // Cut all selected items if item is in selection, otherwise just this item
+                let itemsToCut = viewModel.isSelected(item) ?
+                    viewModel.items.filter { viewModel.selectedItems.contains($0.id) } :
+                    [item]
+                clipboardManager.cut(items: itemsToCut)
+            }
+
+            Divider()
+
+            Button("Move to Trash") {
+                moveToTrash()
+            }
+
+            Button("Rename...") {
+                newName = item.name
+                showingRenameAlert = true
+            }
+
+            Divider()
+
+            Button("Add to Favorites") {
+                sidebarManager.addFavorite(item.path, name: item.name, icon: item.type == .folder ? "folder.fill" : "doc.fill")
+            }
+
+            Menu("Apply Color Tag") {
+                ForEach(ColorTag.TagColor.allCases, id: \.self) { color in
+                    Button(action: {
+                        sidebarManager.setColorTag(for: item.path, tag: ColorTag(color: color, name: color.rawValue))
+                    }) {
+                        HStack {
+                            Circle()
+                                .fill(Color(hex: color.rawValue))
+                                .frame(width: 12, height: 12)
+                            Text(colorName(for: color))
+                        }
+                    }
+                }
+
+                Divider()
+
+                Button("Remove Color Tag") {
+                    sidebarManager.setColorTag(for: item.path, tag: nil)
+                }
+            }
+
+            // Embedding search options (folders only)
+            if item.type == .folder {
+                Divider()
+
+                if embeddingManager.isEmbedded(item.path) {
+                    Button("Disable Embedding Search") {
+                        Task {
+                            embeddingManager.disableEmbedding(for: item.path)
+                        }
+                    }
+                } else {
+                    Button("Enable Embedding Search...") {
+                        selectedFolderForEmbedding = item.path
+                        showEmbeddingSheet = true
+                    }
+                }
             }
         }
         .background(
