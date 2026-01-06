@@ -66,11 +66,24 @@ class InfomaniakEmbeddingService {
     ) async throws -> [Float] {
         let request = try buildRequest(text: text, apiToken: apiToken, productId: productId)
 
+        // Debug logging
+        print("DEBUG: API Request URL: \(request.url?.absoluteString ?? "nil")")
+        print("DEBUG: API Request Method: \(request.httpMethod ?? "nil")")
+        print("DEBUG: API Request Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("DEBUG: API Request Body: \(bodyString)")
+        }
+
         let (data, response) = try await URLSession.shared.data(for: request)
 
         // Check response status
         guard let httpResponse = response as? HTTPURLResponse else {
             throw EmbeddingError.networkError
+        }
+
+        print("DEBUG: API Response Status: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("DEBUG: API Response Body: \(responseString)")
         }
 
         // Handle rate limiting
