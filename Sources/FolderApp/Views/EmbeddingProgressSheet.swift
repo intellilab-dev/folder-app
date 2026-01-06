@@ -7,7 +7,214 @@
 
 import SwiftUI
 
-/// Modal sheet showing embedding generation progress
+/// Window-based view for embedding generation progress
+struct EmbeddingProgressSheetWindow: View {
+    @ObservedObject var embeddingManager: EmbeddingManager
+    let folderPath: URL
+    let onClose: () -> Void
+
+    @State private var filesList: [FileSystemItem] = []
+    @State private var isProcessingStarted = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(spacing: 20) {
+            // Header
+            VStack(spacing: 8) {
+                HStack {
+                    Image(systemName: "sparkles")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+
+                    Text("Enable Embedding Search")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
+                    Spacer()
+                }
+
+                HStack {
+                    Text(folderPath.lastPathComponent)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+                }
+            }
+
+            // Credentials check
+            if !embeddingManager.hasValidCredentials {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Missing API Credentials")
+                            .font(.headline)
+
+                        Text("Please add INFOMANIAK_API_TOKEN and INFOMANIAK_PRODUCT_ID to your .env file")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            // File list or progress
+            if !isProcessingStarted {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Found \(filesList.count) embeddable files")
+                            .font(.headline)
+
+                        Spacer()
+
+                        Text("PDF, Markdown")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    if filesList.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 48))
+                                .foregroundColor(.secondary)
+
+                            Text("No embeddable files found")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+
+                            Text("This folder contains no PDF or Markdown files")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(8)
+                    } else {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 4) {
+                                ForEach(filesList) { file in
+                                    HStack(spacing: 8) {
+                                        Image(systemName: file.path.pathExtension.lowercased() == "pdf" ? "doc.fill" : "doc.text.fill")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 16)
+
+                                        Text(file.name)
+                                            .font(.system(.body, design: .monospaced))
+                                            .lineLimit(1)
+
+                                        Spacer()
+
+                                        Text(formatFileSize(file.size))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .frame(minHeight: 250, maxHeight: .infinity)
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(8)
+                    }
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                Text("Processing...")
+            }
+
+            // Buttons
+            HStack(spacing: 12) {
+                if isProcessingStarted && embeddingManager.processingProgress?.isComplete == true {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+
+                        if let progress = embeddingManager.processingProgress {
+                            Text("Completed: \(progress.successCount) files embedded")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button("Close") {
+                        onClose()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                } else if isProcessingStarted {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+
+                        Text("Processing...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        onClose()
+                    }
+                } else {
+                    Spacer()
+
+                    Button("Cancel") {
+                        onClose()
+                    }
+                    .keyboardShortcut(.cancelAction)
+
+                    Button("Start Processing") {
+                        startProcessing()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!embeddingManager.hasValidCredentials || filesList.isEmpty)
+                }
+            }
+        }
+        .padding(24)
+        .frame(width: 600, height: 500)
+        .onAppear {
+            print("DEBUG: EmbeddingProgressSheetWindow appeared")
+            loadFilesList()
+        }
+    }
+
+    private func loadFilesList() {
+        filesList = embeddingManager.getEmbeddableFiles(in: folderPath)
+        print("DEBUG: Loaded \(filesList.count) embeddable files from \(folderPath.path)")
+        print("DEBUG: Has credentials: \(embeddingManager.hasValidCredentials)")
+    }
+
+    private func startProcessing() {
+        isProcessingStarted = true
+
+        Task {
+            do {
+                try await embeddingManager.enableEmbedding(for: folderPath)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func formatFileSize(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
+/// Original sheet version (kept for backwards compatibility if needed)
 struct EmbeddingProgressSheet: View {
     @ObservedObject var embeddingManager: EmbeddingManager
     let folderPath: URL

@@ -19,8 +19,7 @@ struct FileListView: View {
     @State private var newFolderName = ""
     @State private var lastClickedItem: UUID?
     @State private var lastClickTime: Date?
-    @State private var showEmbeddingSheet = false
-    @State private var selectedFolderForEmbedding: URL?
+    @State private var embeddingWindowController: NSWindowController?
     @FocusState private var renamingFocusedID: UUID?
     @State private var scrollPosition: UUID?
 
@@ -54,8 +53,9 @@ struct FileListView: View {
                         viewModel: viewModel,
                         clipboardManager: clipboardManager,
                         embeddingManager: embeddingManager,
-                        showEmbeddingSheet: $showEmbeddingSheet,
-                        selectedFolderForEmbedding: $selectedFolderForEmbedding
+                        onShowEmbeddingModal: { folder in
+                            showEmbeddingModal(for: folder)
+                        }
                     )
                 }
             }
@@ -98,15 +98,29 @@ struct FileListView: View {
         .onDeleteCommand {
             viewModel.deleteSelectedItems()
         }
-        .sheet(isPresented: $showEmbeddingSheet) {
-            if let folder = selectedFolderForEmbedding {
-                EmbeddingProgressSheet(
-                    embeddingManager: embeddingManager,
-                    folderPath: folder,
-                    isPresented: $showEmbeddingSheet
-                )
+    }
+
+    private func showEmbeddingModal(for folder: URL) {
+        let embeddingView = EmbeddingProgressSheetWindow(
+            embeddingManager: embeddingManager,
+            folderPath: folder,
+            onClose: {
+                embeddingWindowController?.close()
+                embeddingWindowController = nil
             }
-        }
+        )
+
+        embeddingWindowController = SwiftUIWindowController(
+            rootView: embeddingView,
+            title: "Enable Embedding Search",
+            size: NSSize(width: 600, height: 500),
+            styleMask: [.titled, .closable]
+        )
+
+        embeddingWindowController?.window?.level = .floating
+        embeddingWindowController?.window?.backgroundColor = NSColor.folderSidebar
+        embeddingWindowController?.window?.appearance = NSAppearance(named: .darkAqua)
+        embeddingWindowController?.showWindow(nil)
     }
 
     private func handleSingleClick(_ item: FileSystemItem) {
