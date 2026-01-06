@@ -18,28 +18,32 @@ struct EmbeddingProgressSheet: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            headerView
+        VStack(spacing: 0) {
+            VStack(spacing: 20) {
+                // Header
+                headerView
 
-            // Credentials check
-            if !embeddingManager.hasValidCredentials {
-                credentialsWarningView
+                // Credentials check
+                if !embeddingManager.hasValidCredentials {
+                    credentialsWarningView
+                }
+
+                // File list or progress
+                if !isProcessingStarted {
+                    fileListView
+                } else {
+                    progressView
+                }
+
+                // Buttons
+                buttonsView
             }
-
-            // File list or progress
-            if !isProcessingStarted {
-                fileListView
-            } else {
-                progressView
-            }
-
-            // Buttons
-            buttonsView
+            .padding(24)
         }
-        .padding(24)
         .frame(width: 600, height: 500)
+        .background(Color(NSColor.windowBackgroundColor))
         .onAppear {
+            print("DEBUG: EmbeddingProgressSheet appeared")
             loadFilesList()
         }
     }
@@ -108,34 +112,55 @@ struct EmbeddingProgressSheet: View {
                     .foregroundColor(.secondary)
             }
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 4) {
-                    ForEach(filesList) { file in
-                        HStack(spacing: 8) {
-                            Image(systemName: file.path.pathExtension.lowercased() == "pdf" ? "doc.fill" : "doc.text.fill")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .frame(width: 16)
+            if filesList.isEmpty {
+                // Empty state
+                VStack(spacing: 12) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
 
-                            Text(file.name)
-                                .font(.system(.body, design: .monospaced))
-                                .lineLimit(1)
+                    Text("No embeddable files found")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
 
-                            Spacer()
-
-                            Text(formatFileSize(file.size))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 2)
-                    }
+                    Text("This folder contains no PDF or Markdown files")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(8)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 4) {
+                        ForEach(filesList) { file in
+                            HStack(spacing: 8) {
+                                Image(systemName: file.path.pathExtension.lowercased() == "pdf" ? "doc.fill" : "doc.text.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 16)
+
+                                Text(file.name)
+                                    .font(.system(.body, design: .monospaced))
+                                    .lineLimit(1)
+
+                                Spacer()
+
+                                Text(formatFileSize(file.size))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .frame(minHeight: 250, maxHeight: .infinity)
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(8)
             }
-            .frame(maxHeight: .infinity)
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(8)
         }
+        .frame(maxHeight: .infinity)
     }
 
     // MARK: - Progress View
@@ -301,6 +326,8 @@ struct EmbeddingProgressSheet: View {
 
     private func loadFilesList() {
         filesList = embeddingManager.getEmbeddableFiles(in: folderPath)
+        print("DEBUG: Loaded \(filesList.count) embeddable files from \(folderPath.path)")
+        print("DEBUG: Has credentials: \(embeddingManager.hasValidCredentials)")
     }
 
     private func startProcessing() {
