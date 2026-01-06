@@ -127,7 +127,104 @@ struct EmbeddingProgressSheetWindow: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                Text("Processing...")
+                // Progress view
+                VStack(spacing: 16) {
+                    if let progress = embeddingManager.processingProgress {
+                        // Progress bar
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Processing...")
+                                    .font(.headline)
+
+                                Spacer()
+
+                                Text("\(progress.current)/\(progress.total)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            ProgressView(value: Double(progress.current), total: Double(progress.total))
+                                .progressViewStyle(LinearProgressViewStyle())
+
+                            if !progress.currentFile.isEmpty {
+                                Text("Current: \(progress.currentFile)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        // Stats
+                        HStack(spacing: 24) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Success")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("\(progress.successCount)")
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.green)
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Errors")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("\(progress.errors.count)")
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.red)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.top, 8)
+
+                        // Error list (if any)
+                        if !progress.errors.isEmpty && progress.isComplete {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Errors:")
+                                    .font(.headline)
+                                    .foregroundColor(.red)
+
+                                ScrollView {
+                                    LazyVStack(alignment: .leading, spacing: 4) {
+                                        ForEach(progress.errors, id: \.filename) { error in
+                                            HStack(spacing: 8) {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.caption)
+                                                    .foregroundColor(.red)
+
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(error.filename)
+                                                        .font(.caption)
+                                                        .fontWeight(.medium)
+
+                                                    Text(error.error)
+                                                        .font(.caption2)
+                                                        .foregroundColor(.secondary)
+                                                }
+
+                                                Spacer()
+                                            }
+                                            .padding(.vertical, 2)
+                                        }
+                                    }
+                                }
+                                .frame(maxHeight: 120)
+                                .padding(8)
+                                .background(Color.red.opacity(0.05))
+                                .cornerRadius(8)
+                            }
+                        }
+
+                        Spacer()
+                    } else {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Spacer()
+                    }
+                }
             }
 
             // Buttons
