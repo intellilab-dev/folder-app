@@ -627,6 +627,9 @@ struct TagFilterResultsGridView: View {
                                 .onTapGesture {
                                     handleItemClick(item)
                                 }
+                                .contextMenu {
+                                    FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
+                                }
                         }
                     }
                     .padding()
@@ -711,6 +714,9 @@ struct TagFilterResultsListView: View {
                                 }
                                 .onTapGesture {
                                     handleItemClick(item)
+                                }
+                                .contextMenu {
+                                    FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
                                 }
                         }
                     }

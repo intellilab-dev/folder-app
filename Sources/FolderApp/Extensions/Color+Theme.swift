@@ -10,8 +10,23 @@ import AppKit
 
 extension Color {
     static let folderAccent = Color(hex: "#009880")
-    static let folderBase = Color(red: 40/255, green: 44/255, blue: 52/255)
-    static let folderSidebar = Color(red: 30/255, green: 33/255, blue: 39/255)
+
+    // Adaptive colors for light/dark mode
+    static var folderBase: Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .vibrantDark]) != nil
+                ? NSColor(red: 40/255, green: 44/255, blue: 52/255, alpha: 1)  // Dark mode
+                : NSColor(red: 1, green: 1, blue: 1, alpha: 1)                  // Light mode (white)
+        })
+    }
+
+    static var folderSidebar: Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .vibrantDark]) != nil
+                ? NSColor(red: 30/255, green: 33/255, blue: 39/255, alpha: 1)   // Dark mode
+                : NSColor(red: 245/255, green: 245/255, blue: 247/255, alpha: 1) // Light mode (light gray)
+        })
+    }
 
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
