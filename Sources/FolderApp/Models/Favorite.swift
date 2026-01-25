@@ -35,7 +35,7 @@ struct ColorTag: Codable, Equatable, Hashable {
         case teal = "#009880"
         case blue = "#007AFF"
         case purple = "#AF52DE"
-        case pink = "#FF2D55"
+        case pink = "#FF6B9D"
         case gray = "#8E8E93"
 
         var displayName: String {

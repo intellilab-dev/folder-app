@@ -64,7 +64,12 @@ class DraggableView: NSView, NSDraggingSource {
         }
 
         // Start the drag session
-        beginDraggingSession(with: draggingItems, event: event, source: self)
+        let session = beginDraggingSession(with: draggingItems, event: event, source: self)
+
+        // Write file paths using legacy NSFilenamesPboardType for Dock Trash compatibility
+        let filePaths = fileURLs.map { $0.path }
+        session.draggingPasteboard.setPropertyList(filePaths, forType: NSPasteboard.PasteboardType(rawValue: "NSFilenamesPboardType"))
+
         dragStartPoint = nil
     }
 
@@ -77,7 +82,7 @@ class DraggableView: NSView, NSDraggingSource {
     // MARK: - NSDraggingSource
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
-        return context == .outsideApplication ? .copy : .move
+        return context == .outsideApplication ? [.copy, .delete] : .move
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
