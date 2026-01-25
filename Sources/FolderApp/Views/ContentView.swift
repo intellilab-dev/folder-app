@@ -93,6 +93,15 @@ struct ContentView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.tagFilterMode != nil {
+                // Tag filter mode - showing files with a specific color tag
+                Group {
+                    if viewModel.viewMode.mode == .iconGrid {
+                        TagFilterResultsGridView(viewModel: viewModel)
+                    } else {
+                        TagFilterResultsListView(viewModel: viewModel)
+                    }
+                }
             } else if searchViewModel.isSearchActive {
                 // Search mode active
                 if searchViewModel.searchQuery.isEmpty {
@@ -431,20 +440,53 @@ struct SearchResultsGridView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: spacing) {
-                ForEach(searchViewModel.searchResults) { item in
-                    FileGridItem(item: item, isSelected: false, clipboardManager: clipboardManager, isDimmed: false)
-                        .onDrag {
-                            NSItemProvider(object: item.path as NSURL)
-                        }
-                        .onTapGesture(count: 2) {
-                            fileExplorerViewModel.openItem(item)
-                            searchViewModel.deactivateSearch()
-                        }
+        ZStack {
+            // Background tap catcher - clears selection when clicking empty space
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    searchViewModel.clearSelection()
                 }
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: spacing) {
+                    ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
+                        FileGridItem(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, isDimmed: false)
+                            .onDrag {
+                                NSItemProvider(object: item.path as NSURL)
+                            }
+                            .onTapGesture(count: 2) {
+                                fileExplorerViewModel.openItem(item)
+                                searchViewModel.deactivateSearch()
+                            }
+                            .onTapGesture {
+                                handleSearchItemClick(item)
+                            }
+                    }
+                }
+                .padding()
             }
-            .padding()
+        }
+    }
+
+    private func handleSearchItemClick(_ item: FileSystemItem) {
+        let modifierFlags = NSEvent.modifierFlags
+
+        if modifierFlags.contains(.shift) {
+            // Shift+Click: range selection
+            if let lastSelected = searchViewModel.lastSelectedItem,
+               let lastItem = searchViewModel.searchResults.first(where: { $0.id == lastSelected }) {
+                searchViewModel.selectRange(from: lastItem, to: item)
+            } else {
+                searchViewModel.toggleSelection(for: item)
+            }
+        } else if modifierFlags.contains(.command) {
+            // Cmd+Click: toggle selection
+            searchViewModel.toggleSelection(for: item)
+        } else {
+            // Regular click: select only this item
+            searchViewModel.clearSelection()
+            searchViewModel.toggleSelection(for: item)
         }
     }
 }
@@ -455,16 +497,230 @@ struct SearchResultsListView: View {
     @StateObject private var clipboardManager = ClipboardManager.shared
 
     var body: some View {
-        List(searchViewModel.searchResults) { item in
-            FileListRow(item: item, isSelected: false, clipboardManager: clipboardManager, fileExplorerViewModel: fileExplorerViewModel, isDimmed: false)
-                .onDrag {
-                    NSItemProvider(object: item.path as NSURL)
+        ZStack {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    searchViewModel.clearSelection()
                 }
-                .onTapGesture(count: 2) {
-                    fileExplorerViewModel.openItem(item)
-                    searchViewModel.deactivateSearch()
+
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
+                        FileListRow(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, fileExplorerViewModel: fileExplorerViewModel, isDimmed: false)
+                            .onDrag {
+                                NSItemProvider(object: item.path as NSURL)
+                            }
+                            .onTapGesture(count: 2) {
+                                fileExplorerViewModel.openItem(item)
+                                searchViewModel.deactivateSearch()
+                            }
+                            .onTapGesture {
+                                handleSearchItemClick(item)
+                            }
+                    }
                 }
+                .padding(.horizontal)
+            }
         }
-        .listStyle(.plain)
+    }
+
+    private func handleSearchItemClick(_ item: FileSystemItem) {
+        let modifierFlags = NSEvent.modifierFlags
+
+        if modifierFlags.contains(.shift) {
+            // Shift+Click: range selection
+            if let lastSelected = searchViewModel.lastSelectedItem,
+               let lastItem = searchViewModel.searchResults.first(where: { $0.id == lastSelected }) {
+                searchViewModel.selectRange(from: lastItem, to: item)
+            } else {
+                searchViewModel.toggleSelection(for: item)
+            }
+        } else if modifierFlags.contains(.command) {
+            // Cmd+Click: toggle selection
+            searchViewModel.toggleSelection(for: item)
+        } else {
+            // Regular click: select only this item
+            searchViewModel.clearSelection()
+            searchViewModel.toggleSelection(for: item)
+        }
+    }
+}
+
+// MARK: - Tag Filter Results Views
+
+struct TagFilterResultsGridView: View {
+    @ObservedObject var viewModel: FileExplorerViewModel
+    @StateObject private var clipboardManager = ClipboardManager.shared
+
+    private let spacing: CGFloat = 16
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: CGFloat(viewModel.viewMode.iconSize + 40)), spacing: spacing)]
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header showing which tag is being filtered
+            if let tagColor = viewModel.tagFilterMode {
+                HStack {
+                    Circle()
+                        .fill(Color(hex: tagColor.rawValue))
+                        .frame(width: 12, height: 12)
+                    Text("\(tagColor.displayName) Tagged Items")
+                        .font(.headline)
+                    Text("(\(viewModel.tagFilteredItems.count) items)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Exit") {
+                        viewModel.exitTagFilterMode()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                Divider()
+            }
+
+            ZStack {
+                // Background tap catcher
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        viewModel.clearSelection()
+                    }
+
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: spacing) {
+                        ForEach(Array(viewModel.tagFilteredItems), id: \.id) { (item: FileSystemItem) in
+                            FileGridItem(item: item, isSelected: viewModel.isSelected(item), clipboardManager: clipboardManager, isDimmed: false)
+                                .onDrag {
+                                    NSItemProvider(object: item.path as NSURL)
+                                }
+                                .onTapGesture(count: 2) {
+                                    viewModel.openItem(item)
+                                }
+                                .onTapGesture {
+                                    handleItemClick(item)
+                                }
+                        }
+                    }
+                    .padding()
+                }
+            }
+        }
+    }
+
+    private func handleItemClick(_ item: FileSystemItem) {
+        let modifierFlags = NSEvent.modifierFlags
+
+        if modifierFlags.contains(.shift) {
+            if let lastSelected = viewModel.lastSelectedItem,
+               let lastItem = viewModel.tagFilteredItems.first(where: { $0.id == lastSelected }) {
+                // Range selection within tag filtered items
+                guard let startIndex = viewModel.tagFilteredItems.firstIndex(where: { $0.id == lastItem.id }),
+                      let endIndex = viewModel.tagFilteredItems.firstIndex(where: { $0.id == item.id }) else {
+                    return
+                }
+                let range = startIndex < endIndex ? startIndex...endIndex : endIndex...startIndex
+                for index in range {
+                    viewModel.selectedItems.insert(viewModel.tagFilteredItems[index].id)
+                }
+                viewModel.lastSelectedItem = item.id
+            } else {
+                viewModel.toggleSelection(for: item)
+            }
+        } else if modifierFlags.contains(.command) {
+            viewModel.toggleSelection(for: item)
+        } else {
+            viewModel.clearSelection()
+            viewModel.toggleSelection(for: item)
+        }
+    }
+}
+
+struct TagFilterResultsListView: View {
+    @ObservedObject var viewModel: FileExplorerViewModel
+    @StateObject private var clipboardManager = ClipboardManager.shared
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header showing which tag is being filtered
+            if let tagColor = viewModel.tagFilterMode {
+                HStack {
+                    Circle()
+                        .fill(Color(hex: tagColor.rawValue))
+                        .frame(width: 12, height: 12)
+                    Text("\(tagColor.displayName) Tagged Items")
+                        .font(.headline)
+                    Text("(\(viewModel.tagFilteredItems.count) items)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Exit") {
+                        viewModel.exitTagFilterMode()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+
+                Divider()
+            }
+
+            ZStack {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        viewModel.clearSelection()
+                    }
+
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(viewModel.tagFilteredItems), id: \.id) { (item: FileSystemItem) in
+                            FileListRow(item: item, isSelected: viewModel.isSelected(item), clipboardManager: clipboardManager, fileExplorerViewModel: viewModel, isDimmed: false)
+                                .onDrag {
+                                    NSItemProvider(object: item.path as NSURL)
+                                }
+                                .onTapGesture(count: 2) {
+                                    viewModel.openItem(item)
+                                }
+                                .onTapGesture {
+                                    handleItemClick(item)
+                                }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        }
+    }
+
+    private func handleItemClick(_ item: FileSystemItem) {
+        let modifierFlags = NSEvent.modifierFlags
+
+        if modifierFlags.contains(.shift) {
+            if let lastSelected = viewModel.lastSelectedItem,
+               let lastItem = viewModel.tagFilteredItems.first(where: { $0.id == lastSelected }) {
+                // Range selection within tag filtered items
+                guard let startIndex = viewModel.tagFilteredItems.firstIndex(where: { $0.id == lastItem.id }),
+                      let endIndex = viewModel.tagFilteredItems.firstIndex(where: { $0.id == item.id }) else {
+                    return
+                }
+                let range = startIndex < endIndex ? startIndex...endIndex : endIndex...startIndex
+                for index in range {
+                    viewModel.selectedItems.insert(viewModel.tagFilteredItems[index].id)
+                }
+                viewModel.lastSelectedItem = item.id
+            } else {
+                viewModel.toggleSelection(for: item)
+            }
+        } else if modifierFlags.contains(.command) {
+            viewModel.toggleSelection(for: item)
+        } else {
+            viewModel.clearSelection()
+            viewModel.toggleSelection(for: item)
+        }
     }
 }

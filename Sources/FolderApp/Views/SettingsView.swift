@@ -128,6 +128,21 @@ struct SettingsView: View {
                     }
                 }
 
+                // Terminal Settings
+                Section(header: Text("Terminal").font(.headline)) {
+                    Picker("Default Terminal:", selection: $settingsManager.settings.defaultTerminal) {
+                        ForEach(AppSettings.TerminalApp.allCases, id: \.self) { terminal in
+                            Text(terminal.rawValue).tag(terminal)
+                        }
+                    }
+                    .pickerStyle(.radioGroup)
+
+                    Text("Terminal app used for \"Open Terminal Here\" context menu option")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 20)
+                }
+
                 // System Settings
                 Section(header: Text("System").font(.headline)) {
                     Toggle("Show Menu Bar Icon", isOn: $settingsManager.settings.showMenuBarIcon)

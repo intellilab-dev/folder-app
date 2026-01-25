@@ -13,6 +13,7 @@ struct FileGridView: View {
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var searchViewModel: SearchViewModel
     @StateObject private var clipboardManager = ClipboardManager.shared
+    @StateObject private var settingsManager = SettingsManager.shared
     let showDimmed: Bool
 
     @State private var showingNewFolderAlert = false
@@ -36,12 +37,12 @@ struct FileGridView: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        viewModel.clearSelection()
                         if viewModel.renamingItem != nil {
                             renamingFocusedID = nil
                             viewModel.commitRename()
                         }
                     }
-                    .allowsHitTesting(viewModel.renamingItem != nil)  // Only capture taps when renaming
 
                 // Main scroll content
                 ScrollView {
@@ -81,6 +82,12 @@ struct FileGridView: View {
 
                 Divider()
 
+                Button("Open Terminal Here") {
+                    openTerminal(at: viewModel.currentPath)
+                }
+
+                Divider()
+
                 Button("Paste") {
                     Task {
                         do {
@@ -96,6 +103,50 @@ struct FileGridView: View {
         }
         .onDeleteCommand {
             viewModel.deleteSelectedItems()
+        }
+    }
+
+    private func openTerminal(at path: URL) {
+        let terminal = settingsManager.settings.defaultTerminal
+
+        switch terminal {
+        case .terminal, .iterm2:
+            // Use AppleScript for Terminal.app and iTerm2
+            let appName = terminal == .terminal ? "Terminal" : "iTerm"
+            let script = """
+                tell application "\(appName)"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+                if let error = error {
+                    print("AppleScript error: \(error)")
+                }
+            }
+
+        case .warp:
+            // Warp uses URL scheme
+            if let url = URL(string: "warp://action/new_tab?path=\(path.path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path.path)") {
+                NSWorkspace.shared.open(url)
+            }
+
+        case .kitty:
+            // Launch kitty with --directory argument
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/Applications/kitty.app/Contents/MacOS/kitty")
+            process.arguments = ["--directory", path.path]
+            try? process.run()
+
+        case .alacritty:
+            // Launch alacritty with --working-directory argument
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/Applications/Alacritty.app/Contents/MacOS/alacritty")
+            process.arguments = ["--working-directory", path.path]
+            try? process.run()
         }
     }
 
@@ -379,12 +430,20 @@ struct FileContextMenu: View {
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var clipboardManager: ClipboardManager
     @StateObject private var sidebarManager = SidebarManager.shared
+    @StateObject private var settingsManager = SettingsManager.shared
     @State private var showingRenameAlert = false
     @State private var newName = ""
 
     var body: some View {
         Button("Open") {
             viewModel.openItem(item)
+        }
+
+        // Show "Open Terminal Here" for folders
+        if item.type == .folder {
+            Button("Open Terminal Here") {
+                openTerminal(at: item.path)
+            }
         }
 
         // Only show "Open With" for files (not folders)
@@ -560,6 +619,50 @@ struct FileContextMenu: View {
         case .purple: return "Purple"
         case .pink: return "Pink"
         case .gray: return "Gray"
+        }
+    }
+
+    private func openTerminal(at path: URL) {
+        let terminal = settingsManager.settings.defaultTerminal
+
+        switch terminal {
+        case .terminal, .iterm2:
+            // Use AppleScript for Terminal.app and iTerm2
+            let appName = terminal == .terminal ? "Terminal" : "iTerm"
+            let script = """
+                tell application "\(appName)"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+                if let error = error {
+                    print("AppleScript error: \(error)")
+                }
+            }
+
+        case .warp:
+            // Warp uses URL scheme
+            if let url = URL(string: "warp://action/new_tab?path=\(path.path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path.path)") {
+                NSWorkspace.shared.open(url)
+            }
+
+        case .kitty:
+            // Launch kitty with --directory argument
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/Applications/kitty.app/Contents/MacOS/kitty")
+            process.arguments = ["--directory", path.path]
+            try? process.run()
+
+        case .alacritty:
+            // Launch alacritty with --working-directory argument
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/Applications/Alacritty.app/Contents/MacOS/alacritty")
+            process.arguments = ["--working-directory", path.path]
+            try? process.run()
         }
     }
 }

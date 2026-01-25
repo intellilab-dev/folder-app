@@ -25,6 +25,9 @@ struct AppSettings: Codable {
     var showRecentSection: Bool
     var showColorTagsSection: Bool
 
+    // Terminal settings
+    var defaultTerminal: TerminalApp
+
     enum DisplayMode: String, Codable {
         case iconGrid
         case list
@@ -34,6 +37,24 @@ struct AppSettings: Codable {
         case light
         case dark
         case system
+    }
+
+    enum TerminalApp: String, Codable, CaseIterable {
+        case terminal = "Terminal"
+        case iterm2 = "iTerm"
+        case warp = "Warp"
+        case kitty = "kitty"
+        case alacritty = "Alacritty"
+
+        var bundleIdentifier: String {
+            switch self {
+            case .terminal: return "com.apple.Terminal"
+            case .iterm2: return "com.googlecode.iterm2"
+            case .warp: return "dev.warp.Warp-Stable"
+            case .kitty: return "net.kovidgoyal.kitty"
+            case .alacritty: return "org.alacritty"
+            }
+        }
     }
 
     // Default settings
@@ -51,7 +72,8 @@ struct AppSettings: Codable {
         showSidebar: true,
         showFavoritesSection: true,
         showRecentSection: true,
-        showColorTagsSection: true
+        showColorTagsSection: true,
+        defaultTerminal: .terminal
     )
 }
 

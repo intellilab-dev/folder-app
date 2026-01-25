@@ -149,57 +149,37 @@ struct SidebarView: View {
                     .padding(.vertical, 8)
             }
 
-            // Color Tags Section
+            // Color Tags Section - Shows color categories like Finder
             if settingsManager.settings.showColorTagsSection {
-                SidebarSection(title: "Color Tags") {
-                let taggedPaths = Array(sidebarManager.colorTags.keys).sorted { $0.path < $1.path }
+                SidebarSection(title: "Tags") {
+                    // Get used colors (colors that have at least one tagged item)
+                    let usedColors = Set(sidebarManager.colorTags.values.map { $0.color })
+                    let sortedColors = ColorTag.TagColor.allCases.filter { usedColors.contains($0) }
 
-                ForEach(taggedPaths, id: \.self) { path in
-                    if let colorTag = sidebarManager.getColorTag(for: path) {
-                        SidebarColorTagItem(
-                            path: path,
-                            colorTag: colorTag,
-                            isSelected: fileExplorerViewModel.currentPath == path,
-                            sidebarManager: sidebarManager
+                    ForEach(sortedColors, id: \.self) { color in
+                        let count = sidebarManager.colorTags.filter { $0.value.color == color }.count
+                        SidebarTagCategoryItem(
+                            color: color,
+                            count: count,
+                            isSelected: fileExplorerViewModel.tagFilterMode == color
                         ) {
-                            // Resolve symlinks first
-                            let resolvedPath = path.resolvingSymlinksInPath()
-
-                            print("=== Color Tag Click Debug ===")
-                            print("Tag name: \(colorTag.name)")
-                            print("Original path: \(path.path)")
-                            print("Resolved path: \(resolvedPath.path)")
-
-                            // Check existence
-                            guard FileManager.default.fileExists(atPath: resolvedPath.path) else {
-                                print("❌ ERROR: Color tag path does not exist")
-                                print("============================")
-                                return
+                            // Exit filter mode if clicking the same tag, otherwise show files with this tag
+                            if fileExplorerViewModel.tagFilterMode == color {
+                                fileExplorerViewModel.exitTagFilterMode()
+                            } else {
+                                fileExplorerViewModel.showFilesWithTag(color)
                             }
-
-                            // Use resourceValues for more reliable directory check
-                            do {
-                                let resourceValues = try resolvedPath.resourceValues(forKeys: [.isDirectoryKey])
-                                if let isDirectory = resourceValues.isDirectory {
-                                    print("Is directory: \(isDirectory)")
-                                    if isDirectory {
-                                        print("→ Navigating to folder")
-                                        fileExplorerViewModel.navigate(to: resolvedPath)
-                                    } else {
-                                        print("→ Opening file")
-                                        NSWorkspace.shared.open(resolvedPath)
-                                    }
-                                }
-                            } catch {
-                                print("❌ ERROR: Failed to check resource type: \(error)")
-                                print("→ Fallback: Trying to open with NSWorkspace")
-                                NSWorkspace.shared.open(resolvedPath)
-                            }
-                            print("============================")
                         }
                     }
+
+                    if sortedColors.isEmpty {
+                        Text("No tagged items")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                    }
                 }
-            }
             }
 
             Spacer()
@@ -406,7 +386,47 @@ struct SidebarFavoriteItem: View {
     }
 }
 
-// MARK: - Color Tag Item
+// MARK: - Tag Category Item (Finder-like color categories)
+
+struct SidebarTagCategoryItem: View {
+    let color: ColorTag.TagColor
+    let count: Int
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color(hex: color.rawValue))
+                    .frame(width: 12, height: 12)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.primary.opacity(0.2), lineWidth: 0.5)
+                    )
+
+                Text(color.displayName)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? .primary : .primary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text("\(count)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.folderAccent.opacity(0.1) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+    }
+}
+
+// MARK: - Color Tag Item (Legacy - individual items)
 
 struct SidebarColorTagItem: View {
     let path: URL

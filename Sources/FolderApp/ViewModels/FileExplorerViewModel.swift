@@ -25,6 +25,10 @@ class FileExplorerViewModel: ObservableObject {
     @Published var renamingItem: UUID? // Track which item is being renamed
     @Published var renameText: String = "" // Current text in rename field
 
+    // Tag filter mode (Finder-like color tag view)
+    @Published var tagFilterMode: ColorTag.TagColor? = nil
+    @Published var tagFilteredItems: [FileSystemItem] = []
+
     // Navigation history
     @Published var canGoBack = false
     @Published var canGoForward = false
@@ -551,6 +555,54 @@ class FileExplorerViewModel: ObservableObject {
 
         selectedItems.removeAll()
         refresh()
+    }
+
+    // MARK: - Tag Filter Mode
+
+    func showFilesWithTag(_ color: ColorTag.TagColor) {
+        let sidebarManager = SidebarManager.shared
+        tagFilterMode = color
+
+        // Get all URLs with this color from sidebarManager.colorTags
+        let taggedURLs = sidebarManager.colorTags
+            .filter { $0.value.color == color }
+            .map { $0.key }
+
+        // Create FileSystemItems for those URLs
+        tagFilteredItems = taggedURLs.compactMap { url in
+            // Check if file/folder still exists
+            guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+
+            do {
+                let resourceValues = try url.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isSymbolicLinkKey])
+                let isDirectory = resourceValues.isDirectory ?? false
+                let modifiedAt = resourceValues.contentModificationDate ?? Date()
+                let size = Int64(resourceValues.fileSize ?? 0)
+                let isSymlink = resourceValues.isSymbolicLink ?? false
+
+                return FileSystemItem(
+                    path: url,
+                    name: url.lastPathComponent,
+                    type: isDirectory ? .folder : .file,
+                    size: size,
+                    modifiedAt: modifiedAt,
+                    isSymlink: isSymlink
+                )
+            } catch {
+                return nil
+            }
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        // Clear selection
+        selectedItems.removeAll()
+        selectedItemID = nil
+    }
+
+    func exitTagFilterMode() {
+        tagFilterMode = nil
+        tagFilteredItems = []
+        selectedItems.removeAll()
+        selectedItemID = nil
     }
 
     // MARK: - Deinitialization

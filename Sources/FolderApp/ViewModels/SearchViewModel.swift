@@ -16,6 +16,10 @@ class SearchViewModel: ObservableObject {
     @Published var isSearching = false
     @Published var isSearchActive = false
 
+    // Selection state for search results
+    @Published var selectedItems: Set<UUID> = []
+    @Published var lastSelectedItem: UUID?
+
     private var searchTask: Task<Void, Never>?
     private let fileSystemService = FileSystemService.shared
 
@@ -99,6 +103,8 @@ class SearchViewModel: ObservableObject {
         searchResults = []
         isSearching = false
         isSearchActive = false
+        selectedItems = []
+        lastSelectedItem = nil
         searchTask?.cancel()
         debounceTimer?.invalidate()
     }
@@ -109,5 +115,38 @@ class SearchViewModel: ObservableObject {
 
     func deactivateSearch() {
         clearSearch()
+    }
+
+    // MARK: - Selection Methods
+
+    func toggleSelection(for item: FileSystemItem) {
+        if selectedItems.contains(item.id) {
+            selectedItems.remove(item.id)
+        } else {
+            selectedItems.insert(item.id)
+        }
+        lastSelectedItem = item.id
+    }
+
+    func clearSelection() {
+        selectedItems = []
+        lastSelectedItem = nil
+    }
+
+    func selectRange(from startItem: FileSystemItem, to endItem: FileSystemItem) {
+        guard let startIndex = searchResults.firstIndex(where: { $0.id == startItem.id }),
+              let endIndex = searchResults.firstIndex(where: { $0.id == endItem.id }) else {
+            return
+        }
+
+        let range = startIndex < endIndex ? startIndex...endIndex : endIndex...startIndex
+        for index in range {
+            selectedItems.insert(searchResults[index].id)
+        }
+        lastSelectedItem = endItem.id
+    }
+
+    func isSelected(_ item: FileSystemItem) -> Bool {
+        selectedItems.contains(item.id)
     }
 }

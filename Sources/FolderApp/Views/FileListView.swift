@@ -12,6 +12,7 @@ struct FileListView: View {
     @ObservedObject var viewModel: FileExplorerViewModel
     @ObservedObject var searchViewModel: SearchViewModel
     @StateObject private var clipboardManager = ClipboardManager.shared
+    @StateObject private var settingsManager = SettingsManager.shared
     let showDimmed: Bool
 
     @State private var showingNewFolderAlert = false
@@ -56,6 +57,8 @@ struct FileListView: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        // Clear selection when clicking empty space
+                        viewModel.clearSelection()
                         // Save scroll position before dismissing
                         if let currentRenaming = viewModel.renamingItem {
                             scrollPosition = currentRenaming
@@ -68,6 +71,12 @@ struct FileListView: View {
             .contextMenu {
                 Button("New Folder") {
                     viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
+                }
+
+                Divider()
+
+                Button("Open Terminal Here") {
+                    openTerminal(at: viewModel.currentPath)
                 }
 
                 Divider()
@@ -87,6 +96,50 @@ struct FileListView: View {
         }
         .onDeleteCommand {
             viewModel.deleteSelectedItems()
+        }
+    }
+
+    private func openTerminal(at path: URL) {
+        let terminal = settingsManager.settings.defaultTerminal
+
+        switch terminal {
+        case .terminal, .iterm2:
+            // Use AppleScript for Terminal.app and iTerm2
+            let appName = terminal == .terminal ? "Terminal" : "iTerm"
+            let script = """
+                tell application "\(appName)"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+                if let error = error {
+                    print("AppleScript error: \(error)")
+                }
+            }
+
+        case .warp:
+            // Warp uses URL scheme
+            if let url = URL(string: "warp://action/new_tab?path=\(path.path.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? path.path)") {
+                NSWorkspace.shared.open(url)
+            }
+
+        case .kitty:
+            // Launch kitty with --directory argument
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/Applications/kitty.app/Contents/MacOS/kitty")
+            process.arguments = ["--directory", path.path]
+            try? process.run()
+
+        case .alacritty:
+            // Launch alacritty with --working-directory argument
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/Applications/Alacritty.app/Contents/MacOS/alacritty")
+            process.arguments = ["--working-directory", path.path]
+            try? process.run()
         }
     }
 
