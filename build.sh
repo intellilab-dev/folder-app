@@ -96,8 +96,8 @@ codesign --force --sign - --entitlements Folder.entitlements --deep "${APP_BUNDL
 
 echo "✅ Build complete! App bundle created at: ${APP_BUNDLE}"
 echo ""
-echo "To run the app:"
-echo "  ./run.sh"
+echo "To install system-wide:"
+echo "  ./install.sh"
 echo ""
 echo "Or open it manually:"
 echo "  open ${APP_BUNDLE}"

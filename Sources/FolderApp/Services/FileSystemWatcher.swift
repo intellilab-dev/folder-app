@@ -29,7 +29,6 @@ class FileSystemWatcher: ObservableObject {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
               isDirectory.boolValue else {
-            print("FileSystemWatcher: Cannot watch non-directory path: \(url.path)")
             return
         }
 
@@ -40,7 +39,6 @@ class FileSystemWatcher: ObservableObject {
         let fd = open(path, O_EVTONLY)
 
         guard fd >= 0 else {
-            print("FileSystemWatcher: Failed to open file descriptor for \(path)")
             return
         }
 
@@ -54,7 +52,6 @@ class FileSystemWatcher: ObservableObject {
         ) as? DispatchSourceFileSystemObject else {
             close(fd)
             fileDescriptor = nil
-            print("FileSystemWatcher: Failed to create dispatch source")
             return
         }
 
@@ -72,8 +69,6 @@ class FileSystemWatcher: ObservableObject {
 
         dispatchSource = source
         source.resume()
-
-        print("FileSystemWatcher: Started watching \(path)")
     }
 
     /// Stops watching the current directory
@@ -87,8 +82,6 @@ class FileSystemWatcher: ObservableObject {
         dispatchSource = nil
 
         currentPath = nil
-
-        print("FileSystemWatcher: Stopped watching")
     }
 
     /// Resets the change detection flag
@@ -124,7 +117,6 @@ class FileSystemWatcher: ObservableObject {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: path.path, isDirectory: &isDirectory),
               isDirectory.boolValue else {
-            print("FileSystemWatcher: Watched directory no longer exists")
             DispatchQueue.main.async {
                 self.stopWatching()
             }
@@ -133,7 +125,6 @@ class FileSystemWatcher: ObservableObject {
 
         // Notify on main thread
         DispatchQueue.main.async {
-            print("FileSystemWatcher: Changes detected in \(path.path)")
             self.didDetectChanges = true
         }
     }

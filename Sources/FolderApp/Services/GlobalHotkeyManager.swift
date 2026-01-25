@@ -50,9 +50,6 @@ class GlobalHotkeyManager: ObservableObject {
 
         if status == noErr {
             isHotkeyEnabled = true
-            print("Global hotkey registered: keyCode=\(keyCode), modifiers=\(modifiers)")
-        } else {
-            print("Failed to register global hotkey: \(status)")
         }
     }
 

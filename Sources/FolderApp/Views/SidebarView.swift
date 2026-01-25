@@ -29,15 +29,8 @@ struct SidebarView: View {
                         // Resolve symlinks first
                         let resolvedPath = favorite.path.resolvingSymlinksInPath()
 
-                        print("=== Favorite Click Debug ===")
-                        print("Favorite name: \(favorite.name)")
-                        print("Original path: \(favorite.path.path)")
-                        print("Resolved path: \(resolvedPath.path)")
-
                         // Check existence
                         guard FileManager.default.fileExists(atPath: resolvedPath.path) else {
-                            print("❌ ERROR: Favorite path does not exist")
-                            print("===========================")
                             return
                         }
 
@@ -45,21 +38,15 @@ struct SidebarView: View {
                         do {
                             let resourceValues = try resolvedPath.resourceValues(forKeys: [.isDirectoryKey])
                             if let isDirectory = resourceValues.isDirectory {
-                                print("Is directory: \(isDirectory)")
                                 if isDirectory {
-                                    print("→ Navigating to folder")
                                     fileExplorerViewModel.navigate(to: resolvedPath)
                                 } else {
-                                    print("→ Opening file")
                                     NSWorkspace.shared.open(resolvedPath)
                                 }
                             }
                         } catch {
-                            print("❌ ERROR: Failed to check resource type: \(error)")
-                            print("→ Fallback: Trying to open with NSWorkspace")
                             NSWorkspace.shared.open(resolvedPath)
                         }
-                        print("===========================")
                     }
                     .onDrag {
                         NSItemProvider(object: favorite.id.uuidString as NSString)
@@ -79,29 +66,23 @@ struct SidebarView: View {
                     .padding(.vertical, 8)
             }
 
-            // Devices Section
-            SidebarSection(title: "Devices") {
-                ForEach(volumeManager.mountedVolumes) { volume in
-                    SidebarDeviceItem(
-                        volume: volume,
-                        isSelected: fileExplorerViewModel.currentPath == volume.url,
-                        volumeManager: volumeManager
-                    ) {
-                        fileExplorerViewModel.navigate(to: volume.url)
+            // Devices Section - only show when devices are connected
+            if !volumeManager.mountedVolumes.isEmpty {
+                SidebarSection(title: "Devices") {
+                    ForEach(volumeManager.mountedVolumes) { volume in
+                        SidebarDeviceItem(
+                            volume: volume,
+                            isSelected: fileExplorerViewModel.currentPath == volume.url,
+                            volumeManager: volumeManager
+                        ) {
+                            fileExplorerViewModel.navigate(to: volume.url)
+                        }
                     }
                 }
 
-                if volumeManager.mountedVolumes.isEmpty {
-                    Text("No external drives")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                }
+                Divider()
+                    .padding(.vertical, 8)
             }
-
-            Divider()
-                .padding(.vertical, 8)
 
             // Recent Locations Section
             if settingsManager.settings.showRecentSection {
@@ -310,6 +291,24 @@ struct SidebarFavoriteItem: View {
         .buttonStyle(.plain)
         .focusable(false)
         .contextMenu {
+            // Move Up (disabled if first item)
+            Button("Move Up") {
+                if let index = sidebarManager.favorites.firstIndex(where: { $0.id == favorite.id }), index > 0 {
+                    sidebarManager.reorderFavorites(from: index, to: index - 1)
+                }
+            }
+            .disabled(sidebarManager.favorites.first?.id == favorite.id)
+
+            // Move Down (disabled if last item)
+            Button("Move Down") {
+                if let index = sidebarManager.favorites.firstIndex(where: { $0.id == favorite.id }), index < sidebarManager.favorites.count - 1 {
+                    sidebarManager.reorderFavorites(from: index, to: index + 1)
+                }
+            }
+            .disabled(sidebarManager.favorites.last?.id == favorite.id)
+
+            Divider()
+
             Menu("Change Icon") {
                 ForEach(Array(iconOptions.enumerated()), id: \.offset) { index, iconOption in
                     Button(action: {
@@ -530,23 +529,30 @@ struct FavoriteDropDelegate: DropDelegate {
     let sidebarManager: SidebarManager
 
     func performDrop(info: DropInfo) -> Bool {
+        guard let draggedID = info.itemProviders(for: [.text]).first else { return false }
+
+        draggedID.loadObject(ofClass: NSString.self) { object, error in
+            guard let idString = object as? String,
+                  let draggedUUID = UUID(uuidString: idString) else { return }
+
+            Task { @MainActor in
+                // Get fresh indices from current state
+                guard let fromIndex = sidebarManager.favorites.firstIndex(where: { $0.id == draggedUUID }),
+                      let toIndex = sidebarManager.favorites.firstIndex(where: { $0.id == favorite.id }),
+                      fromIndex != toIndex else { return }
+
+                sidebarManager.reorderFavorites(from: fromIndex, to: toIndex)
+            }
+        }
         return true
     }
 
     func dropEntered(info: DropInfo) {
-        guard let draggedID = info.itemProviders(for: [.text]).first else { return }
+        // Visual feedback only - no mutation
+    }
 
-        _ = draggedID.loadObject(ofClass: NSString.self) { object, error in
-            guard let idString = object as? String,
-                  let draggedUUID = UUID(uuidString: idString),
-                  let fromIndex = favorites.firstIndex(where: { $0.id == draggedUUID }),
-                  let toIndex = favorites.firstIndex(where: { $0.id == favorite.id }),
-                  fromIndex != toIndex else { return }
-
-            Task { @MainActor in
-                sidebarManager.reorderFavorites(from: fromIndex, to: toIndex)
-            }
-        }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
     }
 }
 
@@ -556,16 +562,13 @@ struct RecentDropDelegate: DropDelegate {
     let sidebarManager: SidebarManager
 
     func performDrop(info: DropInfo) -> Bool {
-        return true
-    }
+        guard let draggedPath = info.itemProviders(for: [.text]).first else { return false }
 
-    func dropEntered(info: DropInfo) {
-        guard let draggedPath = info.itemProviders(for: [.text]).first else { return }
-
-        _ = draggedPath.loadObject(ofClass: NSString.self) { [sidebarManager] object, error in
+        draggedPath.loadObject(ofClass: NSString.self) { object, error in
             guard let pathString = object as? String else { return }
 
             Task { @MainActor in
+                // Get fresh indices from current state
                 guard let fromIndex = sidebarManager.recentLocations.firstIndex(where: { $0.path == pathString }),
                       let toIndex = sidebarManager.recentLocations.firstIndex(where: { $0 == location }),
                       fromIndex != toIndex else { return }
@@ -573,6 +576,15 @@ struct RecentDropDelegate: DropDelegate {
                 sidebarManager.reorderRecents(from: fromIndex, to: toIndex)
             }
         }
+        return true
+    }
+
+    func dropEntered(info: DropInfo) {
+        // Visual feedback only - no mutation
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
     }
 }
 

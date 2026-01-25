@@ -95,7 +95,7 @@ class VolumeManager: ObservableObject {
                     ))
                 }
             } catch {
-                print("Failed to get volume info for \(url): \(error)")
+                // Skip volumes we can't read
             }
         }
 
@@ -103,11 +103,7 @@ class VolumeManager: ObservableObject {
     }
 
     func ejectVolume(_ volume: VolumeInfo) {
-        do {
-            try NSWorkspace.shared.unmountAndEjectDevice(at: volume.url)
-        } catch {
-            print("Failed to eject volume: \(error)")
-        }
+        try? NSWorkspace.shared.unmountAndEjectDevice(at: volume.url)
     }
 
     deinit {

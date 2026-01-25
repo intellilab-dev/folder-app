@@ -96,12 +96,8 @@ struct FileListView: View {
 
                 Button("Paste") {
                     Task {
-                        do {
-                            _ = try await clipboardManager.paste(to: viewModel.currentPath)
-                            viewModel.refresh()
-                        } catch {
-                            print("Paste failed: \(error)")
-                        }
+                        _ = try? await clipboardManager.paste(to: viewModel.currentPath)
+                        viewModel.refresh()
                     }
                 }
                 .disabled(!clipboardManager.hasClipboardContent())
@@ -135,9 +131,6 @@ struct FileListView: View {
             if let appleScript = NSAppleScript(source: script) {
                 var error: NSDictionary?
                 appleScript.executeAndReturnError(&error)
-                if let error = error {
-                    print("AppleScript error: \(error)")
-                }
             }
 
         case .warp:
@@ -252,9 +245,6 @@ struct FileListView: View {
         for provider in providers {
             _ = provider.loadObject(ofClass: NSURL.self) { [weak viewModel] object, error in
                 guard let url = object as? URL, error == nil else {
-                    if let error = error {
-                        print("Failed to load dropped item: \(error.localizedDescription)")
-                    }
                     return
                 }
 
@@ -264,20 +254,11 @@ struct FileListView: View {
                 guard url != destinationURL else { return }
 
                 // Check if destination already exists
-                if FileManager.default.fileExists(atPath: destinationURL.path) {
-                    print("File already exists at destination")
-                    return
-                }
+                guard !FileManager.default.fileExists(atPath: destinationURL.path) else { return }
 
-                do {
-                    try FileManager.default.moveItem(at: url, to: destinationURL)
-                    print("Moved \(url.lastPathComponent) to \(destination.name)")
-
-                    Task { @MainActor in
-                        viewModel?.refresh()
-                    }
-                } catch {
-                    print("Failed to move item: \(error.localizedDescription)")
+                try? FileManager.default.moveItem(at: url, to: destinationURL)
+                Task { @MainActor in
+                    viewModel?.refresh()
                 }
             }
         }

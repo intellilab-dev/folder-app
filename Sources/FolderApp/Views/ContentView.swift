@@ -364,19 +364,16 @@ struct ContentView: View {
 
                 if result.hasConflicts {
                     // Show conflict resolution dialog (simplified for now - just skip conflicts)
-                    let finalResult = try await clipboardManager.pasteWithResolution(
+                    _ = try await clipboardManager.pasteWithResolution(
                         to: viewModel.currentPath,
                         conflictResolution: .skip
                     )
-                    print("Pasted \(finalResult.succeeded.count) items, skipped \(result.conflicts.count) conflicts")
-                } else {
-                    print("Pasted \(result.succeeded.count) items successfully")
                 }
 
                 // Refresh the view to show pasted items
                 viewModel.refresh()
             } catch {
-                print("Paste failed: \(error.localizedDescription)")
+                // Silent failure - user will see nothing pasted
             }
         }
     }

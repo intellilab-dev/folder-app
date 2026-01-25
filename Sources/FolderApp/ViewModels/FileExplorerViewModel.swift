@@ -56,7 +56,6 @@ class FileExplorerViewModel: ObservableObject {
                 self.currentPath = path
             } else {
                 // If file path provided, use parent directory
-                print("Warning: Provided path is not a directory, using parent: \(path.path)")
                 self.currentPath = path.deletingLastPathComponent()
             }
         } else if let path = settingsManager.settings.lastOpenedFolder {
@@ -83,7 +82,6 @@ class FileExplorerViewModel: ObservableObject {
                 guard let self = self, didChange else { return }
 
                 // Auto-refresh when changes detected
-                print("Auto-refreshing due to file system changes")
                 Task {
                     await self.loadContents()
                 }
@@ -455,14 +453,8 @@ class FileExplorerViewModel: ObservableObject {
             }
         }
 
-        print("=== Create New Folder Debug ===")
-        print("Folder name: \(name)")
-        print("Current path: \(currentPath.path)")
-        print("Security-scoped access granted: \(accessing)")
-
         do {
             try fileSystemService.createFolder(at: currentPath, named: name)
-            print("✅ SUCCESS: Folder '\(name)' created")
 
             if autoRename {
                 // Refresh to get the new folder, then start renaming it
@@ -477,12 +469,8 @@ class FileExplorerViewModel: ObservableObject {
                 refresh()
             }
         } catch {
-            print("❌ ERROR: Failed to create folder")
-            print("Error: \(error)")
-            print("Error description: \(error.localizedDescription)")
             errorMessage = "Failed to create folder: \(error.localizedDescription)"
         }
-        print("==============================")
     }
 
     func renameItem(_ item: FileSystemItem, to newName: String) {
