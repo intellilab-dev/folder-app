@@ -12,9 +12,13 @@ import SwiftUI
 class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindowController: NSWindowController?
     var settingsWindowController: NSWindowController?
+    var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMenu()
+        Task { @MainActor in
+            self.setupStatusBarIcon()
+        }
 
         // Register for URL events
         NSAppleEventManager.shared().setEventHandler(
@@ -107,6 +111,47 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         settingsWindowController?.showWindow(nil)
+    }
+
+    @MainActor private func setupStatusBarIcon() {
+        // Observe settings changes
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateStatusBarVisibility()
+            }
+        }
+
+        updateStatusBarVisibility()
+    }
+
+    @MainActor private func updateStatusBarVisibility() {
+        let showIcon = SettingsManager.shared.settings.showMenuBarIcon
+
+        if showIcon && statusItem == nil {
+            statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            statusItem?.button?.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "Folder")
+
+            let menu = NSMenu()
+            menu.addItem(withTitle: "Show Folder", action: #selector(showMainWindow), keyEquivalent: "")
+            menu.addItem(NSMenuItem.separator())
+            menu.addItem(withTitle: "Settings...", action: #selector(showSettings), keyEquivalent: ",")
+            menu.addItem(NSMenuItem.separator())
+            menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+            statusItem?.menu = menu
+        } else if !showIcon && statusItem != nil {
+            NSStatusBar.system.removeStatusItem(statusItem!)
+            statusItem = nil
+        }
+    }
+
+    @objc func showMainWindow() {
+        mainWindowController?.showWindow(nil)
+        mainWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func setupMenu() {

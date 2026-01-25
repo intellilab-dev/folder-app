@@ -32,49 +32,46 @@ struct FileGridView: View {
         VStack(spacing: 0) {
             SortingToolbar(viewModel: viewModel)
 
-            ZStack {
-                // Background tap catcher - captures taps in empty space
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        viewModel.clearSelection()
-                        if viewModel.renamingItem != nil {
-                            renamingFocusedID = nil
-                            viewModel.commitRename()
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: spacing) {
+                    ForEach(viewModel.items) { item in
+                        FileGridItemWithRename(
+                            item: item,
+                            isSelected: viewModel.isSelected(item),
+                            isRenaming: viewModel.renamingItem == item.id,
+                            clipboardManager: clipboardManager,
+                            isDimmed: showDimmed,
+                            viewModel: viewModel,
+                            onSingleClick: { handleSingleClick(item) },
+                            onDoubleClick: { handleDoubleClick(item) },
+                            renamingFocusedID: $renamingFocusedID
+                        )
+                        .onDrag {
+                            NSItemProvider(object: item.path as NSURL)
+                        }
+                        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+                            handleDrop(providers: providers, destination: item)
+                        }
+                        .contextMenu {
+                            FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
                         }
                     }
-
-                // Main scroll content
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: spacing) {
-                        ForEach(viewModel.items) { item in
-                            FileGridItemWithRename(
-                                item: item,
-                                isSelected: viewModel.isSelected(item),
-                                isRenaming: viewModel.renamingItem == item.id,
-                                clipboardManager: clipboardManager,
-                                isDimmed: showDimmed,
-                                viewModel: viewModel,
-                                onSingleClick: { handleSingleClick(item) },
-                                onDoubleClick: { handleDoubleClick(item) },
-                                renamingFocusedID: $renamingFocusedID
-                            )
-                            .onDrag {
-                                NSItemProvider(object: item.path as NSURL)
-                            }
-                            .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-                                handleDrop(providers: providers, destination: item)
-                            }
-                            .contextMenu {
-                                FileContextMenu(item: item, viewModel: viewModel, clipboardManager: clipboardManager)
-                            }
-                        }
-                    }
-                    .padding()
-                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+                .background(
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            viewModel.clearSelection()
+                            if viewModel.renamingItem != nil {
+                                renamingFocusedID = nil
+                                viewModel.commitRename()
+                            }
+                        }
+                )
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contextMenu {
                 Button("New Folder") {
                     viewModel.createNewFolder(named: "Untitled Folder", autoRename: true)
@@ -107,6 +104,12 @@ struct FileGridView: View {
     }
 
     private func openTerminal(at path: URL) {
+        // Check for custom terminal path first
+        if let customTerminalPath = settingsManager.settings.customTerminalPath {
+            openCustomTerminal(customTerminalPath, at: path)
+            return
+        }
+
         let terminal = settingsManager.settings.defaultTerminal
 
         switch terminal {
@@ -147,6 +150,37 @@ struct FileGridView: View {
             process.executableURL = URL(fileURLWithPath: "/Applications/Alacritty.app/Contents/MacOS/alacritty")
             process.arguments = ["--working-directory", path.path]
             try? process.run()
+        }
+    }
+
+    private func openCustomTerminal(_ terminalURL: URL, at path: URL) {
+        // Use AppleScript for Terminal.app specifically
+        if terminalURL.path.contains("Terminal.app") {
+            let script = """
+                tell application "Terminal"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+            }
+        } else if terminalURL.path.contains("iTerm") {
+            let script = """
+                tell application "iTerm"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+            }
+        } else {
+            // For other terminals, try opening with the path
+            let config = NSWorkspace.OpenConfiguration()
+            NSWorkspace.shared.open([path], withApplicationAt: terminalURL, configuration: config)
         }
     }
 
@@ -623,6 +657,12 @@ struct FileContextMenu: View {
     }
 
     private func openTerminal(at path: URL) {
+        // Check for custom terminal path first
+        if let customTerminalPath = settingsManager.settings.customTerminalPath {
+            openCustomTerminal(customTerminalPath, at: path)
+            return
+        }
+
         let terminal = settingsManager.settings.defaultTerminal
 
         switch terminal {
@@ -663,6 +703,37 @@ struct FileContextMenu: View {
             process.executableURL = URL(fileURLWithPath: "/Applications/Alacritty.app/Contents/MacOS/alacritty")
             process.arguments = ["--working-directory", path.path]
             try? process.run()
+        }
+    }
+
+    private func openCustomTerminal(_ terminalURL: URL, at path: URL) {
+        // Use AppleScript for Terminal.app specifically
+        if terminalURL.path.contains("Terminal.app") {
+            let script = """
+                tell application "Terminal"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+            }
+        } else if terminalURL.path.contains("iTerm") {
+            let script = """
+                tell application "iTerm"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+            }
+        } else {
+            // For other terminals, try opening with the path
+            let config = NSWorkspace.OpenConfiguration()
+            NSWorkspace.shared.open([path], withApplicationAt: terminalURL, configuration: config)
         }
     }
 }

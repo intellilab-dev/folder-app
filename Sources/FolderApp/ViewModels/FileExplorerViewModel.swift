@@ -164,6 +164,11 @@ class FileExplorerViewModel: ObservableObject {
     // MARK: - Navigation
 
     func navigate(to url: URL) {
+        // Exit tag filter mode when navigating to any folder
+        if tagFilterMode != nil {
+            exitTagFilterMode()
+        }
+
         guard fileSystemService.pathExists(url) else {
             errorMessage = "Path does not exist: \(url.path)"
             return

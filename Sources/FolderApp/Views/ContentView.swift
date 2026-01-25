@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var viewModel: FileExplorerViewModel
@@ -453,7 +454,27 @@ struct SearchResultsGridView: View {
                     ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
                         FileGridItem(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, isDimmed: false)
                             .onDrag {
-                                NSItemProvider(object: item.path as NSURL)
+                                // If this item is selected and there are multiple selections, drag all
+                                if searchViewModel.selectedItems.contains(item.id) && searchViewModel.selectedItems.count > 1 {
+                                    let selectedURLs = searchViewModel.searchResults
+                                        .filter { searchViewModel.selectedItems.contains($0.id) }
+                                        .map { $0.path }
+
+                                    // Create provider with multiple file URLs
+                                    let provider = NSItemProvider()
+                                    for url in selectedURLs {
+                                        provider.registerFileRepresentation(
+                                            forTypeIdentifier: UTType.fileURL.identifier,
+                                            visibility: .all
+                                        ) { completion in
+                                            completion(url, true, nil)
+                                            return nil
+                                        }
+                                    }
+                                    return provider
+                                }
+                                // Single item drag
+                                return NSItemProvider(object: item.path as NSURL)
                             }
                             .onTapGesture(count: 2) {
                                 fileExplorerViewModel.openItem(item)
@@ -509,7 +530,27 @@ struct SearchResultsListView: View {
                     ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
                         FileListRow(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, fileExplorerViewModel: fileExplorerViewModel, isDimmed: false)
                             .onDrag {
-                                NSItemProvider(object: item.path as NSURL)
+                                // If this item is selected and there are multiple selections, drag all
+                                if searchViewModel.selectedItems.contains(item.id) && searchViewModel.selectedItems.count > 1 {
+                                    let selectedURLs = searchViewModel.searchResults
+                                        .filter { searchViewModel.selectedItems.contains($0.id) }
+                                        .map { $0.path }
+
+                                    // Create provider with multiple file URLs
+                                    let provider = NSItemProvider()
+                                    for url in selectedURLs {
+                                        provider.registerFileRepresentation(
+                                            forTypeIdentifier: UTType.fileURL.identifier,
+                                            visibility: .all
+                                        ) { completion in
+                                            completion(url, true, nil)
+                                            return nil
+                                        }
+                                    }
+                                    return provider
+                                }
+                                // Single item drag
+                                return NSItemProvider(object: item.path as NSURL)
                             }
                             .onTapGesture(count: 2) {
                                 fileExplorerViewModel.openItem(item)

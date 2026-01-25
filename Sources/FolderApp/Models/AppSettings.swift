@@ -27,6 +27,15 @@ struct AppSettings: Codable {
 
     // Terminal settings
     var defaultTerminal: TerminalApp
+    var customTerminalPath: URL?  // nil means use defaultTerminal enum
+
+    // Helper to get terminal name for display
+    var terminalAppName: String {
+        if let customPath = customTerminalPath {
+            return customPath.deletingPathExtension().lastPathComponent
+        }
+        return defaultTerminal.rawValue
+    }
 
     enum DisplayMode: String, Codable {
         case iconGrid
@@ -73,7 +82,8 @@ struct AppSettings: Codable {
         showFavoritesSection: true,
         showRecentSection: true,
         showColorTagsSection: true,
-        defaultTerminal: .terminal
+        defaultTerminal: .terminal,
+        customTerminalPath: nil
     )
 }
 

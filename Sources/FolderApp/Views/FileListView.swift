@@ -100,6 +100,12 @@ struct FileListView: View {
     }
 
     private func openTerminal(at path: URL) {
+        // Check for custom terminal path first
+        if let customTerminalPath = settingsManager.settings.customTerminalPath {
+            openCustomTerminal(customTerminalPath, at: path)
+            return
+        }
+
         let terminal = settingsManager.settings.defaultTerminal
 
         switch terminal {
@@ -140,6 +146,37 @@ struct FileListView: View {
             process.executableURL = URL(fileURLWithPath: "/Applications/Alacritty.app/Contents/MacOS/alacritty")
             process.arguments = ["--working-directory", path.path]
             try? process.run()
+        }
+    }
+
+    private func openCustomTerminal(_ terminalURL: URL, at path: URL) {
+        // Use AppleScript for Terminal.app specifically
+        if terminalURL.path.contains("Terminal.app") {
+            let script = """
+                tell application "Terminal"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+            }
+        } else if terminalURL.path.contains("iTerm") {
+            let script = """
+                tell application "iTerm"
+                    activate
+                    do script "cd '\(path.path)'"
+                end tell
+                """
+            if let appleScript = NSAppleScript(source: script) {
+                var error: NSDictionary?
+                appleScript.executeAndReturnError(&error)
+            }
+        } else {
+            // For other terminals, try opening with the path
+            let config = NSWorkspace.OpenConfiguration()
+            NSWorkspace.shared.open([path], withApplicationAt: terminalURL, configuration: config)
         }
     }
 

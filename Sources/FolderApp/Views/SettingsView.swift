@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var settingsManager: SettingsManager
@@ -130,12 +132,29 @@ struct SettingsView: View {
 
                 // Terminal Settings
                 Section(header: Text("Terminal").font(.headline)) {
-                    Picker("Default Terminal:", selection: $settingsManager.settings.defaultTerminal) {
-                        ForEach(AppSettings.TerminalApp.allCases, id: \.self) { terminal in
-                            Text(terminal.rawValue).tag(terminal)
+                    HStack {
+                        Text("Default Terminal:")
+                        Spacer()
+                        Text(settingsManager.settings.terminalAppName)
+                            .foregroundColor(.secondary)
+                        Button("Choose...") {
+                            selectTerminalApp()
+                        }
+                        if settingsManager.settings.customTerminalPath != nil {
+                            Button("Reset") {
+                                settingsManager.settings.customTerminalPath = nil
+                            }
                         }
                     }
-                    .pickerStyle(.radioGroup)
+
+                    if settingsManager.settings.customTerminalPath == nil {
+                        Picker("Preset Terminals:", selection: $settingsManager.settings.defaultTerminal) {
+                            ForEach(AppSettings.TerminalApp.allCases, id: \.self) { terminal in
+                                Text(terminal.rawValue).tag(terminal)
+                            }
+                        }
+                        .pickerStyle(.radioGroup)
+                    }
 
                     Text("Terminal app used for \"Open Terminal Here\" context menu option")
                         .font(.caption)
@@ -177,5 +196,19 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 550, height: 700)
+    }
+
+    private func selectTerminalApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.title = "Select Terminal Application"
+        panel.message = "Choose a terminal application to use for \"Open Terminal Here\""
+
+        if panel.runModal() == .OK, let url = panel.url {
+            settingsManager.settings.customTerminalPath = url
+        }
     }
 }
