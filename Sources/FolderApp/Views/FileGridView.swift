@@ -441,6 +441,7 @@ struct FileGridItem: View {
                 .stroke(isSelected ? Color.folderAccent : Color.clear, lineWidth: 2)
         )
         .opacity(opacity)
+        .contentShape(Rectangle())
         .transaction { $0.animation = nil }
         .task {
             // Load thumbnail for images and PDFs
@@ -601,7 +602,15 @@ struct FileContextMenu: View {
     }
 
     private func moveToTrash() {
-        try? FileManager.default.trashItem(at: item.path, resultingItemURL: nil)
+        // Trash all selected items if item is in selection, otherwise just this item
+        let itemsToTrash = viewModel.isSelected(item) ?
+            viewModel.items.filter { viewModel.selectedItems.contains($0.id) } :
+            [item]
+
+        for trashItem in itemsToTrash {
+            try? FileManager.default.trashItem(at: trashItem.path, resultingItemURL: nil)
+        }
+        viewModel.selectedItems.removeAll()
         viewModel.refresh()
     }
 
