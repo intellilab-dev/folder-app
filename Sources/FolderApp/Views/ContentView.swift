@@ -441,52 +441,44 @@ struct SearchResultsGridView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Background tap catcher - clears selection when clicking empty space
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    searchViewModel.clearSelection()
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: spacing) {
+                ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
+                    FileGridItem(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, isDimmed: false)
+                        .overlay {
+                            // Multi-file drag overlay when multiple items selected
+                            if searchViewModel.selectedItems.count > 1 && searchViewModel.isSelected(item) {
+                                Color.clear
+                                    .multiFileDrag(
+                                        urls: searchViewModel.searchResults
+                                            .filter { searchViewModel.selectedItems.contains($0.id) }
+                                            .map { $0.path },
+                                        enabled: true
+                                    )
+                            }
+                        }
+                        .onDrag {
+                            // Single file drag fallback
+                            NSItemProvider(object: item.path as NSURL)
+                        }
+                        .onTapGesture(count: 2) {
+                            fileExplorerViewModel.openItem(item)
+                            searchViewModel.deactivateSearch()
+                        }
+                        .onTapGesture {
+                            handleSearchItemClick(item)
+                        }
                 }
-
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: spacing) {
-                    ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
-                        FileGridItem(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, isDimmed: false)
-                            .onDrag {
-                                // If this item is selected and there are multiple selections, drag all
-                                if searchViewModel.selectedItems.contains(item.id) && searchViewModel.selectedItems.count > 1 {
-                                    let selectedURLs = searchViewModel.searchResults
-                                        .filter { searchViewModel.selectedItems.contains($0.id) }
-                                        .map { $0.path }
-
-                                    // Create provider with multiple file URLs
-                                    let provider = NSItemProvider()
-                                    for url in selectedURLs {
-                                        provider.registerFileRepresentation(
-                                            forTypeIdentifier: UTType.fileURL.identifier,
-                                            visibility: .all
-                                        ) { completion in
-                                            completion(url, true, nil)
-                                            return nil
-                                        }
-                                    }
-                                    return provider
-                                }
-                                // Single item drag
-                                return NSItemProvider(object: item.path as NSURL)
-                            }
-                            .onTapGesture(count: 2) {
-                                fileExplorerViewModel.openItem(item)
-                                searchViewModel.deactivateSearch()
-                            }
-                            .onTapGesture {
-                                handleSearchItemClick(item)
-                            }
-                    }
-                }
-                .padding()
             }
+            .padding()
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+            .background(
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        searchViewModel.clearSelection()
+                    }
+            )
         }
     }
 
@@ -518,51 +510,44 @@ struct SearchResultsListView: View {
     @StateObject private var clipboardManager = ClipboardManager.shared
 
     var body: some View {
-        ZStack {
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    searchViewModel.clearSelection()
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
+                    FileListRow(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, fileExplorerViewModel: fileExplorerViewModel, isDimmed: false)
+                        .overlay {
+                            // Multi-file drag overlay when multiple items selected
+                            if searchViewModel.selectedItems.count > 1 && searchViewModel.isSelected(item) {
+                                Color.clear
+                                    .multiFileDrag(
+                                        urls: searchViewModel.searchResults
+                                            .filter { searchViewModel.selectedItems.contains($0.id) }
+                                            .map { $0.path },
+                                        enabled: true
+                                    )
+                            }
+                        }
+                        .onDrag {
+                            // Single file drag fallback
+                            NSItemProvider(object: item.path as NSURL)
+                        }
+                        .onTapGesture(count: 2) {
+                            fileExplorerViewModel.openItem(item)
+                            searchViewModel.deactivateSearch()
+                        }
+                        .onTapGesture {
+                            handleSearchItemClick(item)
+                        }
                 }
-
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(searchViewModel.searchResults), id: \.id) { (item: FileSystemItem) in
-                        FileListRow(item: item, isSelected: searchViewModel.isSelected(item), clipboardManager: clipboardManager, fileExplorerViewModel: fileExplorerViewModel, isDimmed: false)
-                            .onDrag {
-                                // If this item is selected and there are multiple selections, drag all
-                                if searchViewModel.selectedItems.contains(item.id) && searchViewModel.selectedItems.count > 1 {
-                                    let selectedURLs = searchViewModel.searchResults
-                                        .filter { searchViewModel.selectedItems.contains($0.id) }
-                                        .map { $0.path }
-
-                                    // Create provider with multiple file URLs
-                                    let provider = NSItemProvider()
-                                    for url in selectedURLs {
-                                        provider.registerFileRepresentation(
-                                            forTypeIdentifier: UTType.fileURL.identifier,
-                                            visibility: .all
-                                        ) { completion in
-                                            completion(url, true, nil)
-                                            return nil
-                                        }
-                                    }
-                                    return provider
-                                }
-                                // Single item drag
-                                return NSItemProvider(object: item.path as NSURL)
-                            }
-                            .onTapGesture(count: 2) {
-                                fileExplorerViewModel.openItem(item)
-                                searchViewModel.deactivateSearch()
-                            }
-                            .onTapGesture {
-                                handleSearchItemClick(item)
-                            }
-                    }
-                }
-                .padding(.horizontal)
             }
+            .padding(.horizontal)
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+            .background(
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        searchViewModel.clearSelection()
+                    }
+            )
         }
     }
 
