@@ -118,10 +118,44 @@ struct SettingsView: View {
                     Toggle("Enable Global Hotkey", isOn: $settingsManager.settings.globalHotkey.enabled)
 
                     if settingsManager.settings.globalHotkey.enabled {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Current Hotkey: \(settingsManager.settings.globalHotkey.displayString)")
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Current hotkey display
+                            HStack {
+                                Text("Current Hotkey:")
+                                    .font(.subheadline)
+                                Text(settingsManager.settings.globalHotkey.displayString)
+                                    .font(.system(.subheadline, design: .monospaced))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.secondary.opacity(0.2))
+                                    .cornerRadius(4)
+                            }
+
+                            // Key picker
+                            Picker("Key:", selection: $settingsManager.settings.globalHotkey.key) {
+                                Text("Space").tag("space")
+                                Divider()
+                                ForEach(["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"], id: \.self) { key in
+                                    Text(key).tag(key.lowercased())
+                                }
+                                Divider()
+                                ForEach(Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), id: \.self) { letter in
+                                    Text(String(letter)).tag(String(letter).lowercased())
+                                }
+                            }
+                            .pickerStyle(.menu)
+
+                            // Modifier toggles
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Modifiers:")
+                                    .font(.subheadline)
+                                HStack(spacing: 16) {
+                                    ModifierToggle(label: "Command", symbol: "⌘", modifier: .command, modifiers: $settingsManager.settings.globalHotkey.modifiers)
+                                    ModifierToggle(label: "Control", symbol: "⌃", modifier: .control, modifiers: $settingsManager.settings.globalHotkey.modifiers)
+                                    ModifierToggle(label: "Option", symbol: "⌥", modifier: .option, modifiers: $settingsManager.settings.globalHotkey.modifiers)
+                                    ModifierToggle(label: "Shift", symbol: "⇧", modifier: .shift, modifiers: $settingsManager.settings.globalHotkey.modifiers)
+                                }
+                            }
 
                             Text("Activates Folder from anywhere on your system")
                                 .font(.caption)
@@ -211,5 +245,44 @@ struct SettingsView: View {
         if panel.runModal() == .OK, let url = panel.url {
             settingsManager.settings.customTerminalPath = url
         }
+    }
+}
+
+// MARK: - Modifier Toggle for Global Hotkey
+
+struct ModifierToggle: View {
+    let label: String
+    let symbol: String
+    let modifier: GlobalHotkey.KeyModifier
+    @Binding var modifiers: [GlobalHotkey.KeyModifier]
+
+    private var isEnabled: Bool {
+        modifiers.contains(modifier)
+    }
+
+    var body: some View {
+        Button(action: {
+            if isEnabled {
+                modifiers.removeAll { $0 == modifier }
+            } else {
+                modifiers.append(modifier)
+            }
+        }) {
+            HStack(spacing: 4) {
+                Text(symbol)
+                    .font(.system(size: 14, design: .monospaced))
+                Text(label)
+                    .font(.caption)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(isEnabled ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1))
+            .cornerRadius(4)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(isEnabled ? Color.accentColor : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

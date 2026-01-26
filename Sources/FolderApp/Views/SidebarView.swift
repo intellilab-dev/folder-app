@@ -23,11 +23,9 @@ struct SidebarView: View {
         return sidebarManager.favorites.filter { !isGoogleDriveFavorite($0) }
     }
 
-    /// Check if a favorite is Google Drive
+    /// Check if a favorite is the root Google Drive entry
     private func isGoogleDriveFavorite(_ favorite: Favorite) -> Bool {
-        if favorite.name == "Google Drive" { return true }
-        let path = favorite.path.path
-        return path.contains("GoogleDrive-") || path.hasSuffix("/Google Drive")
+        return favorite.name == "Google Drive"
     }
 
     var body: some View {

@@ -18,6 +18,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenu()
         Task { @MainActor in
             self.setupStatusBarIcon()
+            self.setupGlobalHotkey()
         }
 
         // Register for URL events
@@ -145,6 +146,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else if !showIcon && statusItem != nil {
             NSStatusBar.system.removeStatusItem(statusItem!)
             statusItem = nil
+        }
+    }
+
+    @MainActor private func setupGlobalHotkey() {
+        // Observe settings changes for hotkey updates
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateGlobalHotkey()
+            }
+        }
+
+        updateGlobalHotkey()
+    }
+
+    @MainActor private func updateGlobalHotkey() {
+        let settings = SettingsManager.shared.settings.globalHotkey
+
+        if settings.enabled {
+            if let keyCode = GlobalHotkeyManager.keyCodeFromString(settings.key) {
+                let modifiers = GlobalHotkeyManager.carbonModifiersFromSettings(settings.modifiers)
+                GlobalHotkeyManager.shared.registerHotkey(keyCode: keyCode, modifiers: modifiers)
+            }
+        } else {
+            GlobalHotkeyManager.shared.unregisterHotkey()
         }
     }
 

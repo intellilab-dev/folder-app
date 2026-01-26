@@ -109,4 +109,17 @@ extension GlobalHotkeyManager {
 
         return carbonMods
     }
+
+    static func carbonModifiersFromSettings(_ modifiers: [GlobalHotkey.KeyModifier]) -> UInt32 {
+        var carbonMods: UInt32 = 0
+        for mod in modifiers {
+            switch mod {
+            case .command: carbonMods |= UInt32(cmdKey)
+            case .control: carbonMods |= UInt32(controlKey)
+            case .option: carbonMods |= UInt32(optionKey)
+            case .shift: carbonMods |= UInt32(shiftKey)
+            }
+        }
+        return carbonMods
+    }
 }
