@@ -15,12 +15,27 @@ struct SidebarView: View {
     @StateObject private var volumeManager = VolumeManager.shared
     @State private var showAllRecent = false
 
+    /// Favorites filtered based on settings
+    private var displayedFavorites: [Favorite] {
+        if settingsManager.settings.showGoogleDriveInFavorites {
+            return sidebarManager.favorites
+        }
+        return sidebarManager.favorites.filter { !isGoogleDriveFavorite($0) }
+    }
+
+    /// Check if a favorite is Google Drive
+    private func isGoogleDriveFavorite(_ favorite: Favorite) -> Bool {
+        if favorite.name == "Google Drive" { return true }
+        let path = favorite.path.path
+        return path.contains("GoogleDrive-") || path.hasSuffix("/Google Drive")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Favorites Section
             if settingsManager.settings.showFavoritesSection {
                 SidebarSection(title: "Favorites") {
-                ForEach(sidebarManager.favorites) { favorite in
+                ForEach(displayedFavorites) { favorite in
                     SidebarFavoriteItem(
                         favorite: favorite,
                         isSelected: fileExplorerViewModel.currentPath == favorite.path,

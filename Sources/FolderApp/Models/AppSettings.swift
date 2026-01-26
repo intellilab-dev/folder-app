@@ -24,6 +24,7 @@ struct AppSettings: Codable {
     var showFavoritesSection: Bool
     var showRecentSection: Bool
     var showColorTagsSection: Bool
+    var showGoogleDriveInFavorites: Bool
 
     // Terminal settings
     var defaultTerminal: TerminalApp
@@ -82,6 +83,7 @@ struct AppSettings: Codable {
         showFavoritesSection: true,
         showRecentSection: true,
         showColorTagsSection: true,
+        showGoogleDriveInFavorites: true,
         defaultTerminal: .terminal,
         customTerminalPath: nil
     )

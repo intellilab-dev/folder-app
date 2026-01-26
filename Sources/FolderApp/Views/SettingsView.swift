@@ -69,6 +69,7 @@ struct SettingsView: View {
                     Toggle("Show Favorites Section", isOn: $settingsManager.settings.showFavoritesSection)
                     Toggle("Show Recent Section", isOn: $settingsManager.settings.showRecentSection)
                     Toggle("Show Color Tags Section", isOn: $settingsManager.settings.showColorTagsSection)
+                    Toggle("Show Google Drive in Favorites", isOn: $settingsManager.settings.showGoogleDriveInFavorites)
                 }
 
                 // Appearance Settings
